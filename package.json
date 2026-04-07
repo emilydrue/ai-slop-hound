@@ -1,0 +1,21 @@
+{
+  "name": "ai-slop-hound",
+  "version": "0.0.0",
+  "type": "module",
+  "private": true,
+  "license": "BSD-3-Clause",
+  "main": "src/main.ts",
+  "scripts": {
+    "dev": "devvit dev"
+  },
+  "dependencies": {
+    "@devvit/public-api": "0.12.18"
+  },
+  "devDependencies": {
+    "@devvit/tsconfig": "0.12.18",
+    "typescript": "5.8.3"
+  },
+  "devvit": {
+    "runtime": "Devvit"
+  }
+}

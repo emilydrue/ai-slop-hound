@@ -1,0 +1,5 @@
+name: ai-slop-hound
+version: 0.0.1
+description: >-
+  AI slop detection hound that barks at suspicious posts. More barks = more
+  slop.
