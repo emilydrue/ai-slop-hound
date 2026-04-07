@@ -38,7 +38,7 @@ Devvit.addSettings([
       { label: 'Public comment on post', value: 'public' },
       { label: 'Mod-only (quiet mode)', value: 'mod-only' },
     ],
-    defaultValue: ['public'],
+    defaultValue: ['mod-only'],
   },
   {
     name: 'minimumTextLength',
@@ -88,7 +88,7 @@ async function loadSettings(context: ContextWithRedis) {
   return {
     threshold: ((thresholdRaw as number) ?? 45) / 100,
     actionMode: ((actionModeRaw as string[])?.[0] ?? 'alert-only') as ActionMode,
-    visibility: ((visibilityRaw as string[])?.[0] ?? 'public') as BarkVisibility,
+    visibility: ((visibilityRaw as string[])?.[0] ?? 'mod-only') as BarkVisibility,
     minLength: (minLenRaw as number) ?? 100,
   };
 }
