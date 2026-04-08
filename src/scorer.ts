@@ -572,7 +572,16 @@ export function scorePost(
   if (playfulCount >= 3) humanMarkers += 0.06;
 
   // Parenthetical asides — "(yup, as in a blade)", "(lol)", "(not kidding)"
-  const parentheticals = (text.match(/\([^)]{2,40}\)/g) || []).length;
+  // Exclude AITA-style age/gender format: (24f), (10m), (30 NB), (female, she/her)
+  const allParens = text.match(/\([^)]{2,40}\)/g) || [];
+  const aitaFormatParens = allParens.filter((p) =>
+    /^\(\d{1,3}\s*[mfMFnNbB]?\)$/.test(p) ||
+    /^\(\d{1,3}\s*(male|female|nb|enby)\)$/i.test(p) ||
+    /^\([^)]*\b(she\/her|he\/him|they\/them)\b[^)]*\)$/i.test(p) ||
+    /^\(\d{1,3}\s*[mf],?\s/i.test(p) ||
+    /^\(~?\d{1,3}\s*[mf]\s/i.test(p)
+  ).length;
+  const parentheticals = allParens.length - aitaFormatParens;
   signals.parentheticals = parentheticals;
   if (parentheticals >= 1) humanMarkers += 0.06;
 
