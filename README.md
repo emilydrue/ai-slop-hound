@@ -73,6 +73,26 @@ This is a statistical detector. It catches most AI-generated content but has kno
 - Very short posts/comments don't give the scorer enough to work with
 - Articulate humans occasionally get flagged — use the "Trust This User" action to allowlist them
 
+## Changelog
+
+### 1.1.0
+
+- **Trusted users allowlist** — Mods can mark users as trusted to skip future scans
+- **False positive logging** — "Not Slop" action logs misses for accuracy tracking
+- **Stats dashboard** — View scan counts, alert counts, and accuracy from the subreddit menu
+- **Onboarding** — Welcome modmail sent on install with setup instructions
+- **Improved detection** — Catches prompted AI with specific details (tricolons, antithetical pairs, rhetorical structure)
+- **Safer defaults** — Bark visibility defaults to mod-only; no public comments unless opted in
+- **Hardened output** — Scoring details removed from all user-facing messages
+
+### 1.0.0
+
+- Initial public release
+- Statistical AI content detection (no external API calls)
+- Configurable threshold, action mode, bark visibility
+- Manual scan via post/comment menu
+- Modmail alerts and mod queue reporting
+
 ## Feedback & discussion
 
 All discussion about SlopHound happens at [r/ai_slop_hound_dev](https://www.reddit.com/r/ai_slop_hound_dev). This is a beta — post there with one of these tags:
