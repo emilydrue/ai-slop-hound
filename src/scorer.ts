@@ -801,9 +801,27 @@ export function scorePost(
   const formalGrammar = (text.match(/\b(whom|whilst|thereafter|furthermore|notwithstanding|henceforth|aforementioned|pertaining|one might|one could|one would)\b/gi) || []).length;
   signals.formal_grammar = formalGrammar;
 
-  // Stacked fragments — "Nothing to conquer. Nothing to eat. Winter coming."
-  // AI uses consecutive short sentences for dramatic effect. Humans don't.
+  // Stacked fragments — consecutive short sentences.
+  // AI stacks grammatically clean fragments for drama: "Nothing to conquer. Nothing to eat."
+  // Humans stack broken fragments for voice: "Eat bugs. It cold. Do sleep."
   const allSents = text.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 0);
+  const shortSents = allSents.filter((s) => s.split(/\s+/).length <= 4);
+
+  // Check if short sentences have broken grammar (human pet voice) or clean grammar (AI rhetoric)
+  // Broken: starts with bare verb ("Eat bugs"), adjective without article ("Am baby"),
+  // missing copula ("It cold"), or dropped subject ("Do sleep", "Very warm")
+  let cleanFragments = 0;
+  let brokenFragments = 0;
+  for (const s of shortSents) {
+    const isBroken =
+      /^(am |is |are |be |do |eat |go |sit |run |walk |want |need |make |get |give |find |have |see |know |say |come |take |put |try |ask |tell )/i.test(s) && !/^(i |he |she |it |we |they |you )/i.test(s) || // verb without subject
+      /^(very |much |many |so |big |also |maybe |just |still |here |there )/i.test(s) || // adverb/adjective start (not "no"/"not" — those are clean negation)
+      /^(me |him |her |us |them )\w/i.test(s); // object pronoun as subject ("me no sleep")
+    if (isBroken) brokenFragments++;
+    else cleanFragments++;
+  }
+
+  // Count stacked runs
   let stackedFragmentRuns = 0;
   let currentRun = 0;
   for (const s of allSents) {
@@ -815,8 +833,18 @@ export function scorePost(
     }
   }
   signals.stacked_fragments = stackedFragmentRuns;
-  if (stackedFragmentRuns >= 2) aiProb += 0.1;
-  else if (stackedFragmentRuns >= 1) aiProb += 0.05;
+  signals.clean_fragments = cleanFragments;
+  signals.broken_fragments = brokenFragments;
+
+  // Only penalize if fragments are grammatically clean (AI rhetoric)
+  // Any significant broken fragment count = human voice, don't penalize
+  if (brokenFragments >= 3) {
+    aiProb -= 0.08; // reward broken grammar fragments as human
+  } else if (stackedFragmentRuns >= 2) {
+    aiProb += 0.1;
+  } else if (stackedFragmentRuns >= 1) {
+    aiProb += 0.05;
+  }
 
   // Hyphen-as-dash evasion — "word- next" instead of em dash
   const fakeEmDash = (text.match(/\w-\s\w/g) || []).length;
