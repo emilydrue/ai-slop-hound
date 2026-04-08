@@ -80,13 +80,9 @@ export function generateBarkComment(score: SlopScore): string | null {
 
   const bark = pick(BARKS[level.barks]);
   const reaction = pick(REACTIONS[level.barks]);
-  const why = whyItSmells(score);
-  const pct = (score.overall * 100).toFixed(0);
 
   return [
     `**${bark}** ${reaction}`,
-    '',
-    `**${level.barks}/5 barks** — authenticity ${pct}% (${why})`,
     '',
     `^(SlopHound is an AI content detector for mods.) [^(Learn more)](https://developers.reddit.com/apps/ai-slop-hound)`,
   ].join('\n');
