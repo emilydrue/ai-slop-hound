@@ -464,7 +464,10 @@ Devvit.addMenuItem({
     if (users.length === 0) {
       context.ui.showToast('No trusted users yet.');
     } else {
-      context.ui.showToast(`Trusted users: ${users.join(', ')}`);
+      const list = users.length === 2
+        ? users.join(' and ')
+        : users.slice(0, -1).join(', ') + ', and ' + users[users.length - 1];
+      context.ui.showToast(`Trusted users: ${list}`);
     }
   },
 });
