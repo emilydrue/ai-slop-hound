@@ -47,31 +47,11 @@ const BARKS: Record<number, string[]> = {
 };
 
 const REACTIONS: Record<number, string[]> = {
-  1: [
-    'faint whiff of something. probably nothing... probably.',
-    'nose twitch. something smells a little off here.',
-    'caught a scent. could be nothing.',
-  ],
-  2: [
-    'this smells synthetic.',
-    'hackles up. something about this reads off.',
-    'sniffing intensifies. this one is suspicious.',
-  ],
-  3: [
-    'this doesn\'t smell right.',
-    'digging up bones on this one. multiple signals firing.',
-    'picked up several AI scents here.',
-  ],
-  4: [
-    'multiple strong signals detected.',
-    'all four paws planted. high confidence on this one.',
-    'strong AI scent across the board.',
-  ],
-  5: [
-    'every signal is firing. extremely high confidence.',
-    'full howl. this one lit up the whole board.',
-    'off the charts. about as confident as it gets.',
-  ],
+  1: ['smells like AI.'],
+  2: ['smells like AI.'],
+  3: ['smells like AI.'],
+  4: ['smells like AI.'],
+  5: ['smells like AI.'],
 };
 
 export function generateBarkComment(score: SlopScore): string | null {
