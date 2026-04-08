@@ -3,7 +3,7 @@ import { cleanText } from './textCleaner.js';
 import { scorePost } from './scorer.js';
 import { getBarkLevel, generateBarkComment, generateModMessage } from './bark.js';
 import { saveScanResult, hasBeenScanned, claimBarkSlot, isUserTrusted, trustUser, untrustUser, getTrustedUsers, logFalsePositive, getStats } from './storage.js';
-import type { ActionMode, AuthorInfo, BarkVisibility, ScanResult } from './types.js';
+import type { ActionMode, AuthorInfo, BarkVisibility, ScanTarget, ScanResult } from './types.js';
 
 Devvit.configure({ redditAPI: true, redis: true });
 
@@ -25,8 +25,8 @@ Devvit.addSettings([
     type: 'select',
     label: 'Action when slop is detected',
     options: [
-      { label: 'Alert only (comment + modmail)', value: 'alert-only' },
-      { label: 'Auto-remove post', value: 'auto-remove' },
+      { label: 'Alert only (report + modmail)', value: 'alert-only' },
+      { label: 'Auto-remove', value: 'auto-remove' },
     ],
     defaultValue: ['alert-only'],
   },
@@ -39,6 +39,17 @@ Devvit.addSettings([
       { label: 'Mod-only (quiet mode)', value: 'mod-only' },
     ],
     defaultValue: ['mod-only'],
+  },
+  {
+    name: 'scanTarget',
+    type: 'select',
+    label: 'What to scan',
+    options: [
+      { label: 'Posts and comments', value: 'both' },
+      { label: 'Posts only', value: 'posts' },
+      { label: 'Comments only', value: 'comments' },
+    ],
+    defaultValue: ['both'],
   },
   {
     name: 'minimumTextLength',
@@ -77,11 +88,12 @@ async function getAuthorInfo(
 }
 
 async function loadSettings(context: ContextWithRedis) {
-  const [thresholdRaw, actionModeRaw, visibilityRaw, minLenRaw] =
+  const [thresholdRaw, actionModeRaw, visibilityRaw, scanTargetRaw, minLenRaw] =
     await Promise.all([
       context.settings.get<number>('slopThreshold'),
       context.settings.get<string[]>('actionMode'),
       context.settings.get<string[]>('barkVisibility'),
+      context.settings.get<string[]>('scanTarget'),
       context.settings.get<number>('minimumTextLength'),
     ]);
 
@@ -89,6 +101,7 @@ async function loadSettings(context: ContextWithRedis) {
     threshold: ((thresholdRaw as number) ?? 45) / 100,
     actionMode: ((actionModeRaw as string[])?.[0] ?? 'alert-only') as ActionMode,
     visibility: ((visibilityRaw as string[])?.[0] ?? 'mod-only') as BarkVisibility,
+    scanTarget: ((scanTargetRaw as string[])?.[0] ?? 'both') as ScanTarget,
     minLength: (minLenRaw as number) ?? 100,
   };
 }
@@ -299,7 +312,8 @@ Devvit.addTrigger({
   onEvent: async (event, context) => {
     const postId = event.post?.id;
     if (!postId) return;
-    // Don't scan our own posts
+    const settings = await loadSettings(context);
+    if (settings.scanTarget === 'comments') return;
     const appUsername = await getAppUsername(context);
     if (event.author?.name === appUsername) return;
     await scanPost(context, postId);
@@ -311,7 +325,8 @@ Devvit.addTrigger({
   onEvent: async (event, context) => {
     const commentId = event.comment?.id;
     if (!commentId) return;
-    // Don't scan our own comments (prevents infinite loop)
+    const settings = await loadSettings(context);
+    if (settings.scanTarget === 'posts') return;
     const appUsername = await getAppUsername(context);
     if (event.author?.name === appUsername) return;
     await scanComment(context, commentId);
