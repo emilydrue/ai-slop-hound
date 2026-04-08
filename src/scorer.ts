@@ -568,10 +568,20 @@ export function scorePost(
   }
 
   // Typos / casual spelling — real humans misspell things and use shorthand
-  const typoMarkers = (text.match(/\b(tho|thru|gonna|wanna|gotta|kinda|sorta|dunno|prolly|cuz|coz|bc|rn|ur|u|r|w\/|b\/c|idk|tbf|ngl|ect|alot|definately|seperate|occured|recieve|wierd|noone|eachother|atleast|alright|thankyou|everytime|infront|aswell)\b/gi) || []).length;
+  const typoMarkers = (text.match(/\b(tho|thru|gonna|wanna|gotta|kinda|sorta|dunno|prolly|cuz|coz|bc|rn|ur|u|r|w\/|b\/c|idk|tbf|ngl|ect|alot|definately|seperate|occured|recieve|wierd|noone|eachother|atleast|alright|thankyou|everytime|infront|aswell|birfday|boi|bois|hooman|hoomans|smol|heckin|henlo|floof|doggo|pupper|chonk|chonky|mlem|blep|tippy taps|zoomies|scritches|wif|gib|lyk|luv|pls|plz)\b/gi) || []).length;
   signals.typo_markers = typoMarkers;
   if (typoMarkers >= 1) humanMarkers += 0.06;
   if (typoMarkers >= 3) humanMarkers += 0.06;
+
+  // Excessive punctuation — "??????" or "!!!!" — humans do this, AI doesn't
+  const excessivePunctuation = (text.match(/[?!]{3,}/g) || []).length;
+  signals.excessive_punctuation = excessivePunctuation;
+  if (excessivePunctuation >= 1) humanMarkers += 0.06;
+
+  // Deliberate word repetition for emphasis — "bite and bite and bite"
+  const emphasisRepeat = (text.match(/\b(\w+) and \1 and \1\b/gi) || []).length;
+  signals.emphasis_repetition = emphasisRepeat;
+  if (emphasisRepeat >= 1) humanMarkers += 0.06;
 
   // Repeated words — "after after", "the the" — humans do this, AI doesn't
   const repeatedWords = (text.match(/\b(\w+)\s+\1\b/gi) || []).length;
