@@ -585,6 +585,11 @@ export function scorePost(
   signals.parentheticals = parentheticals;
   if (parentheticals >= 1) humanMarkers += 0.06;
 
+  // Three-dot ellipsis — humans trail off with "..." constantly, AI almost never does
+  const tripleDots = (text.match(/\.{3}/g) || []).length;
+  signals.triple_dot_ellipsis = tripleDots;
+  if (tripleDots >= 1) humanMarkers += 0.06;
+
   // Missing hyphens where grammar demands them — humans skip compound adjective hyphens
   // "well stocked" instead of "well-stocked", "long term" instead of "long-term"
   const missingHyphens = (text.match(/\b(well|long|short|high|low|full|self|over|under|hard|fast|slow|first|second|third|real|old|new|big|small) [a-z]{3,}\b/gi) || []).length;
