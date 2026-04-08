@@ -69,46 +69,11 @@ function paragraphUniformity(text: string): number {
   return Math.max(0, 1 - cv / 0.8);
 }
 
-/** How specific is the text? Distinguish real details from generic props.
- *  Real details: proper nouns, brand names, exact dollar amounts, named locations.
- *  Generic props: "a sandwich", "a gas station", "seven months" — anyone can make these up. */
-function specificityScore(text: string): number {
-  let score = 0.35; // lower baseline — specificity must be earned
-  const lower = text.toLowerCase();
-
-  // Strong specificity: dollar amounts, percentages, exact figures
-  const exactAmounts = (text.match(/\$\d[\d,.]+|\b\d+%|\b\d{1,3}k\b/g) || []).length;
-  if (exactAmounts >= 2) score += 0.2;
-  else if (exactAmounts >= 1) score += 0.1;
-
-  // Strong specificity: proper nouns / brand names (capitalized multi-word or known patterns)
-  // Look for capitalized words that aren't sentence starters
-  const midSentenceProperNouns = (text.match(/[a-z,] [A-Z][a-z]{2,}/g) || []).length;
-  if (midSentenceProperNouns >= 3) score += 0.15;
-  else if (midSentenceProperNouns >= 1) score += 0.05;
-
-  // Strong specificity: named people, places, products
-  const namedEntities = (text.match(/\b(my (wife|husband|partner|friend|boss|coworker|mom|dad|brother|sister|son|daughter) \w+|r\/\w+|\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/g) || []).length;
-  if (namedEntities >= 1) score += 0.1;
-
-  // Moderate: time references with specifics
-  const timeRefs = (lower.match(/\b(in 20\d{2}|last (january|february|march|april|may|june|july|august|september|october|november|december)|\d+ years? ago)\b/g) || []).length;
-  if (timeRefs >= 1) score += 0.1;
-
-  // Weak: generic numbers and time words — less credit than before
-  const numberCount = (text.match(/\b\d+\b/g) || []).length;
-  if (numberCount >= 3) score += 0.05;
-
-  if (COMPARISON_MARKERS.some((m) => lower.includes(m))) score += 0.1;
-
-  const problemCount = PROBLEM_MARKERS.reduce(
-    (c, m) => c + (lower.includes(m) ? 1 : 0),
-    0,
-  );
-  if (problemCount >= 2) score += 0.1;
-  else if (problemCount === 1) score += 0.05;
-
-  return Math.min(1, score);
+/** Specificity is unreliable — AI has internet access and can include any
+ *  searchable detail. This returns a flat neutral value. Kept as a function
+ *  in case we find a way to detect truly personal (non-Googleable) details. */
+function specificityScore(_text: string): number {
+  return 0.5; // neutral — doesn't help or hurt
 }
 
 /** Mixed emotions = more authentic. Uniformly positive/negative = suspicious. */
@@ -888,6 +853,16 @@ export function scorePost(
     aiProb += 0.05;
   }
 
+  // Header/bullet density — AI loves organizing posts with markdown headers and bullet lists
+  // Real Reddit posts are messy paragraphs, not structured documents
+  const headerCount = (text.match(/^#{1,3}\s|^[A-Z][^.!?\n]{3,30}\??\s*$/gm) || []).length;
+  const bulletCount = (text.match(/^[\s]*[-*•]\s/gm) || []).length;
+  signals.headers = headerCount;
+  signals.bullets = bulletCount;
+  const structuredFormatting = headerCount + Math.floor(bulletCount / 2);
+  if (structuredFormatting >= 4) aiProb += 0.12;
+  else if (structuredFormatting >= 2) aiProb += 0.06;
+
   // Hyphen-as-dash evasion — "word- next" instead of em dash
   const fakeEmDash = (text.match(/\w-\s\w/g) || []).length;
   signals.fake_em_dash = fakeEmDash;
@@ -964,12 +939,12 @@ export function scorePost(
 
   // --- Final score ---
   // 3 dimensions: AI probability (primary), specificity, emotional variance
-  // + human texture as a direct modifier
+  // 3 dimensions: AI probability (primary), emotional variance, human texture
+  // Specificity removed — AI has internet access, details prove nothing
   const overall = clamp(
-    (1 - aiProb) * 0.45 +
-      specificity * 0.20 * specificityDampen +
-      emotVar * 0.15 +
-      humanTexture * 0.20,
+    (1 - aiProb) * 0.50 +
+      emotVar * 0.20 +
+      humanTexture * 0.30,
   );
 
   return {
