@@ -99,13 +99,11 @@ export function generateModMessage(
   return [
     `**SlopHound [${level.barks}/5]** — [${postTitle}](${postUrl}) by u/${authorName}`,
     '',
-    `| | |`,
-    `|---|---|`,
-    `| Authenticity | ${(score.overall * 100).toFixed(0)}% |`,
-    `| AI probability | ${(score.aiProbability * 100).toFixed(0)}% |`,
-    `| Promo probability | ${(score.paidProbability * 100).toFixed(0)}% |`,
-    `| Specificity | ${(score.specificity * 100).toFixed(0)}% |`,
-    `| Emotional variance | ${(score.emotionalVariance * 100).toFixed(0)}% |`,
-    `| Account trust | ${(score.accountTrust * 100).toFixed(0)}% |`,
+    `This content triggered SlopHound's AI detection system.`,
+    '',
+    `Use the three-dot menu on the post/comment to:`,
+    `- **"SlopHound: Sniff This Post/Comment"** to re-scan manually`,
+    `- **"SlopHound: Not Slop"** to dismiss and mark as a false positive`,
+    `- **"SlopHound: Trust This User"** to skip this user in future scans`,
   ].join('\n');
 }

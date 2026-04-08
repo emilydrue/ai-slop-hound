@@ -2,7 +2,7 @@ import { Devvit } from '@devvit/public-api';
 import { cleanText } from './textCleaner.js';
 import { scorePost } from './scorer.js';
 import { getBarkLevel, generateBarkComment, generateModMessage } from './bark.js';
-import { saveScanResult, hasBeenScanned, claimBarkSlot } from './storage.js';
+import { saveScanResult, hasBeenScanned, claimBarkSlot, isUserTrusted, trustUser, untrustUser, logFalsePositive, getStats } from './storage.js';
 import type { ActionMode, AuthorInfo, BarkVisibility, ScanResult } from './types.js';
 
 Devvit.configure({ redditAPI: true, redis: true });
@@ -121,6 +121,7 @@ async function scanPost(
 
   const cleaned = cleanText(body);
   const authorName = post.authorName ?? '[deleted]';
+  if (await isUserTrusted(redis, authorName)) return null;
   const authorInfo = await getAuthorInfo(reddit, authorName);
   const score = scorePost(cleaned, authorInfo, post.score);
   const barkLevel = getBarkLevel(score.overall);
@@ -155,7 +156,7 @@ async function scanPost(
       );
       await reddit.sendPrivateMessage({
         to: `/r/${post.subredditName}`,
-        subject: `SlopHound Alert [${barkLevel.barks}/5] — ${post.title.slice(0, 50)}`,
+        subject: `SlopHound Alert — ${post.title.slice(0, 60)}`,
         text: modMessage,
       });
     } catch {
@@ -169,7 +170,7 @@ async function scanPost(
     } else {
       // Always report to mod queue so it shows up for review
       await reddit.report(post, {
-        reason: `SlopHound: ${barkLevel.barks}/5 barks — authenticity ${(score.overall * 100).toFixed(0)}%`,
+        reason: `SlopHound: AI content detected`,
       });
       actionTaken = actionTaken === 'commented' ? 'commented' : 'reported';
     }
@@ -211,6 +212,7 @@ async function scanComment(
 
   const cleaned = cleanText(body);
   const authorName = comment.authorName ?? '[deleted]';
+  if (await isUserTrusted(redis, authorName)) return null;
   const authorInfo = await getAuthorInfo(reddit, authorName);
   const score = scorePost(cleaned, authorInfo, comment.score);
   const barkLevel = getBarkLevel(score.overall);
@@ -248,7 +250,7 @@ async function scanComment(
       );
       await reddit.sendPrivateMessage({
         to: `/r/${comment.subredditName}`,
-        subject: `SlopHound Alert [${barkLevel.barks}/5] — comment by u/${authorName}`,
+        subject: `SlopHound Alert — comment by u/${authorName}`,
         text: modMessage,
       });
     } catch {
@@ -261,7 +263,7 @@ async function scanComment(
       actionTaken = 'removed';
     } else {
       await reddit.report(comment, {
-        reason: `SlopHound: ${barkLevel.barks}/5 barks — authenticity ${(score.overall * 100).toFixed(0)}%`,
+        reason: `SlopHound: AI content detected`,
       });
       actionTaken = actionTaken === 'commented' ? 'commented' : 'reported';
     }
@@ -337,13 +339,9 @@ Devvit.addMenuItem({
 
     const level = result.barkLevel;
     if (level.barks === 0) {
-      context.ui.showToast(
-        `SlopHound says: All clear! Authenticity ${(result.score.overall * 100).toFixed(0)}% — this post smells genuine.`,
-      );
+      context.ui.showToast('SlopHound says: All clear! This post smells genuine.');
     } else {
-      context.ui.showToast(
-        `SlopHound: ${level.barks}/5 barks! Authenticity ${(result.score.overall * 100).toFixed(0)}%. Check modmail for details.`,
-      );
+      context.ui.showToast(`SlopHound: Alert triggered. Check modmail for details.`);
     }
   },
 });
@@ -365,13 +363,151 @@ Devvit.addMenuItem({
 
     const level = result.barkLevel;
     if (level.barks === 0) {
-      context.ui.showToast(
-        `SlopHound says: All clear! Authenticity ${(result.score.overall * 100).toFixed(0)}% — this comment smells genuine.`,
-      );
+      context.ui.showToast('SlopHound says: All clear! This comment smells genuine.');
     } else {
-      context.ui.showToast(
-        `SlopHound: ${level.barks}/5 barks! Authenticity ${(result.score.overall * 100).toFixed(0)}%. Check modmail for details.`,
-      );
+      context.ui.showToast(`SlopHound: Alert triggered. Check modmail for details.`);
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Trust / False Positive actions
+// ---------------------------------------------------------------------------
+
+Devvit.addMenuItem({
+  label: 'SlopHound: Trust This User',
+  location: ['post', 'comment'],
+  forUserType: 'moderator',
+  onPress: async (event, context) => {
+    const targetId = event.targetId;
+    let authorName: string;
+    try {
+      if (event.location === 'comment') {
+        const comment = await context.reddit.getCommentById(targetId);
+        authorName = comment.authorName ?? '[deleted]';
+      } else {
+        const post = await context.reddit.getPostById(targetId);
+        authorName = post.authorName ?? '[deleted]';
+      }
+    } catch {
+      context.ui.showToast('Could not find content.');
+      return;
+    }
+
+    await trustUser(context.redis, authorName);
+    context.ui.showToast(`SlopHound will now skip u/${authorName} in future scans.`);
+  },
+});
+
+Devvit.addMenuItem({
+  label: 'SlopHound: Untrust This User',
+  location: ['post', 'comment'],
+  forUserType: 'moderator',
+  onPress: async (event, context) => {
+    const targetId = event.targetId;
+    let authorName: string;
+    try {
+      if (event.location === 'comment') {
+        const comment = await context.reddit.getCommentById(targetId);
+        authorName = comment.authorName ?? '[deleted]';
+      } else {
+        const post = await context.reddit.getPostById(targetId);
+        authorName = post.authorName ?? '[deleted]';
+      }
+    } catch {
+      context.ui.showToast('Could not find content.');
+      return;
+    }
+
+    await untrustUser(context.redis, authorName);
+    context.ui.showToast(`SlopHound will resume scanning u/${authorName}.`);
+  },
+});
+
+Devvit.addMenuItem({
+  label: 'SlopHound: Not Slop (False Positive)',
+  location: ['post', 'comment'],
+  forUserType: 'moderator',
+  onPress: async (event, context) => {
+    const targetId = event.targetId;
+    let authorName: string;
+    try {
+      if (event.location === 'comment') {
+        const comment = await context.reddit.getCommentById(targetId);
+        authorName = comment.authorName ?? '[deleted]';
+      } else {
+        const post = await context.reddit.getPostById(targetId);
+        authorName = post.authorName ?? '[deleted]';
+      }
+    } catch {
+      context.ui.showToast('Could not find content.');
+      return;
+    }
+
+    const currentUser = await context.reddit.getCurrentUser();
+    const modName = currentUser?.username ?? 'unknown';
+    await logFalsePositive(context.redis, targetId, authorName, modName);
+    context.ui.showToast(`Logged as false positive. Thanks for the feedback!`);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Stats action
+// ---------------------------------------------------------------------------
+
+Devvit.addMenuItem({
+  label: 'SlopHound: View Stats',
+  location: 'subreddit',
+  forUserType: 'moderator',
+  onPress: async (_event, context) => {
+    const stats = await getStats(context.redis);
+    const accuracy = stats.totalAlerts > 0
+      ? ((1 - stats.falsePositives / stats.totalAlerts) * 100).toFixed(1)
+      : 'N/A';
+    context.ui.showToast(
+      `Scans: ${stats.totalScans} | Alerts: ${stats.totalAlerts} | False positives: ${stats.falsePositives} | Accuracy: ${accuracy}%`
+    );
+  },
+});
+
+// ---------------------------------------------------------------------------
+// AppInstall — onboarding
+// ---------------------------------------------------------------------------
+
+Devvit.addTrigger({
+  event: 'AppInstall',
+  onEvent: async (_event, context) => {
+    try {
+      const sub = await context.reddit.getSubredditById(context.subredditId!);
+      if (!sub) return;
+      await context.reddit.sendPrivateMessage({
+        to: `/r/${sub.name}`,
+        subject: 'SlopHound has been installed!',
+        text: [
+          `**Welcome to SlopHound** — AI content detection for your community.`,
+          '',
+          `SlopHound is now scanning new posts and comments for AI-generated content.`,
+          '',
+          `**Default settings:**`,
+          `- Detection threshold: 45 (moderate — catches most AI content)`,
+          `- Action: Alert only (reports to mod queue + sends modmail)`,
+          `- Bark visibility: Mod-only (no public comments)`,
+          `- Minimum text length: 100 characters`,
+          '',
+          `**To configure:** Go to Mod Tools > Installed Apps > ai-slop-hound > Settings`,
+          '',
+          `**Mod actions available** (three-dot menu on any post/comment):`,
+          `- **Sniff This Post/Comment** — Manual scan on demand`,
+          `- **Trust This User** — Skip a user in future scans`,
+          `- **Not Slop (False Positive)** — Log a miss so we can improve`,
+          '',
+          `**View stats:** Three-dot menu on your subreddit > **SlopHound: View Stats**`,
+          '',
+          `Questions or feedback? Visit [r/ai_slop_hound_dev](https://www.reddit.com/r/ai_slop_hound_dev)`,
+        ].join('\n'),
+      });
+    } catch {
+      // Non-fatal — mod may not have modmail permissions configured yet
     }
   },
 });

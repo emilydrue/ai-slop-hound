@@ -64,3 +64,84 @@ export async function claimBarkSlot(
   await redis.expire(key, SCAN_TTL);
   return true;
 }
+
+// ---------------------------------------------------------------------------
+// Trusted users allowlist
+// ---------------------------------------------------------------------------
+
+function trustedKey(username: string): string {
+  return `${PREFIX}:trusted:${username.toLowerCase()}`;
+}
+
+export async function isUserTrusted(
+  redis: RedisClient,
+  username: string,
+): Promise<boolean> {
+  const val = await redis.get(trustedKey(username));
+  return val !== undefined && val !== null;
+}
+
+export async function trustUser(
+  redis: RedisClient,
+  username: string,
+): Promise<void> {
+  await redis.set(trustedKey(username), '1');
+}
+
+export async function untrustUser(
+  redis: RedisClient,
+  username: string,
+): Promise<void> {
+  await redis.del(trustedKey(username));
+}
+
+// ---------------------------------------------------------------------------
+// False positive log — stored for analysis, no TTL
+// ---------------------------------------------------------------------------
+
+function fpLogKey(): string {
+  return `${PREFIX}:false_positives`;
+}
+
+export async function logFalsePositive(
+  redis: RedisClient,
+  contentId: string,
+  authorName: string,
+  modName: string,
+): Promise<void> {
+  const entry = JSON.stringify({
+    contentId,
+    authorName,
+    modName,
+    timestamp: Date.now(),
+  });
+  await redis.zAdd(fpLogKey(), { member: entry, score: Date.now() });
+  await redis.incrBy(`${statsKey()}:false_positives`, 1);
+}
+
+export async function getFalsePositives(
+  redis: RedisClient,
+  limit: number = 50,
+): Promise<string[]> {
+  const results = await redis.zRange(fpLogKey(), 0, limit - 1, { reverse: true, by: 'rank' });
+  return results.map((r) => r.member);
+}
+
+// ---------------------------------------------------------------------------
+// Stats
+// ---------------------------------------------------------------------------
+
+export async function getStats(
+  redis: RedisClient,
+): Promise<{ totalScans: number; totalAlerts: number; falsePositives: number }> {
+  const [scans, alerts, fps] = await Promise.all([
+    redis.get(`${statsKey()}:total_scans`),
+    redis.get(`${statsKey()}:total_alerts`),
+    redis.get(`${statsKey()}:false_positives`),
+  ]);
+  return {
+    totalScans: parseInt(scans ?? '0', 10),
+    totalAlerts: parseInt(alerts ?? '0', 10),
+    falsePositives: parseInt(fps ?? '0', 10),
+  };
+}
