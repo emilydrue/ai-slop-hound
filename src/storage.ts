@@ -32,6 +32,13 @@ export async function saveScanResult(
   await Promise.all(promises);
 }
 
+export async function deleteScanResult(
+  redis: RedisClient,
+  contentId: string,
+): Promise<void> {
+  await redis.del(scanKey(contentId));
+}
+
 export async function hasBeenScanned(
   redis: RedisClient,
   postId: string,

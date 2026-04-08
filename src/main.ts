@@ -2,7 +2,7 @@ import { Devvit } from '@devvit/public-api';
 import { cleanText } from './textCleaner.js';
 import { scorePost } from './scorer.js';
 import { getBarkLevel, generateBarkComment, generateModMessage } from './bark.js';
-import { saveScanResult, hasBeenScanned, claimBarkSlot, isUserTrusted, trustUser, untrustUser, getTrustedUsers, logFalsePositive, getStats } from './storage.js';
+import { saveScanResult, hasBeenScanned, deleteScanResult, claimBarkSlot, isUserTrusted, trustUser, untrustUser, getTrustedUsers, logFalsePositive, getStats } from './storage.js';
 import type { ActionMode, AuthorInfo, BarkVisibility, ScanResult } from './types.js';
 
 Devvit.configure({ redditAPI: true, redis: true });
@@ -407,6 +407,28 @@ Devvit.addTrigger({
     const appUsername = await getAppUsername(context);
     if (event.author?.name === appUsername) return;
     await scanComment(context, commentId);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Deletion triggers — clean up Redis when content is deleted (Devvit Rules)
+// ---------------------------------------------------------------------------
+
+Devvit.addTrigger({
+  event: 'PostDelete',
+  onEvent: async (event, context) => {
+    const postId = event.postId;
+    if (!postId) return;
+    await deleteScanResult(context.redis, postId);
+  },
+});
+
+Devvit.addTrigger({
+  event: 'CommentDelete',
+  onEvent: async (event, context) => {
+    const commentId = event.commentId;
+    if (!commentId) return;
+    await deleteScanResult(context.redis, commentId);
   },
 });
 
