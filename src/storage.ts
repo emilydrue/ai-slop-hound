@@ -20,14 +20,16 @@ export async function saveScanResult(
   redis: RedisClient,
   result: ScanResult,
 ): Promise<void> {
-  await redis.set(scanKey(result.postId), JSON.stringify(result));
-  await redis.expire(scanKey(result.postId), SCAN_TTL);
-
-  // Increment stats
-  await redis.incrBy(`${statsKey()}:total_scans`, 1);
+  const key = scanKey(result.postId);
+  await redis.set(key, JSON.stringify(result));
+  const promises: Promise<unknown>[] = [
+    redis.expire(key, SCAN_TTL),
+    redis.incrBy(`${statsKey()}:total_scans`, 1),
+  ];
   if (result.actionTaken !== 'none') {
-    await redis.incrBy(`${statsKey()}:total_alerts`, 1);
+    promises.push(redis.incrBy(`${statsKey()}:total_alerts`, 1));
   }
+  await Promise.all(promises);
 }
 
 export async function hasBeenScanned(
@@ -38,15 +40,6 @@ export async function hasBeenScanned(
   return val !== undefined && val !== null;
 }
 
-export async function getScanResult(
-  redis: RedisClient,
-  postId: string,
-): Promise<ScanResult | null> {
-  const val = await redis.get(scanKey(postId));
-  if (!val) return null;
-  return JSON.parse(val) as ScanResult;
-}
-
 // ---------------------------------------------------------------------------
 // Per-thread bark tracking — only bark once per post thread
 // ---------------------------------------------------------------------------
@@ -55,20 +48,19 @@ function threadBarkKey(postId: string): string {
   return `${PREFIX}:barked_in_thread:${postId}`;
 }
 
-/** Check if SlopHound has already barked anywhere in this post's thread. */
-export async function hasBarkedInThread(
+/**
+ * Atomically claim the bark slot for a thread. Returns true if this call
+ * won the slot (i.e. no prior bark), false if another call already claimed it.
+ * Uses set-if-not-exists to prevent race conditions with concurrent triggers.
+ */
+export async function claimBarkSlot(
   redis: RedisClient,
   postId: string,
 ): Promise<boolean> {
-  const val = await redis.get(threadBarkKey(postId));
-  return val !== undefined && val !== null;
-}
-
-/** Mark that SlopHound has barked in this post's thread. */
-export async function markBarkedInThread(
-  redis: RedisClient,
-  postId: string,
-): Promise<void> {
-  await redis.set(threadBarkKey(postId), '1');
-  await redis.expire(threadBarkKey(postId), SCAN_TTL);
+  const key = threadBarkKey(postId);
+  const existing = await redis.get(key);
+  if (existing !== undefined && existing !== null) return false;
+  await redis.set(key, '1');
+  await redis.expire(key, SCAN_TTL);
+  return true;
 }

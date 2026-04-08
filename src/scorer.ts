@@ -93,7 +93,7 @@ function specificityScore(text: string): number {
 
 /** Mixed emotions = more authentic. Uniformly positive/negative = suspicious. */
 function emotionalVariance(text: string): number {
-  const words = new Set((text.toLowerCase().match(/\b\w+\b/g) || []));
+  const words = text.toLowerCase().match(/\b\w+\b/g) || [];
   let posCount = 0;
   let negCount = 0;
   let hasContrast = false;

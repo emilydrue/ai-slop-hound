@@ -2,7 +2,7 @@ import { Devvit } from '@devvit/public-api';
 import { cleanText } from './textCleaner.js';
 import { scorePost } from './scorer.js';
 import { getBarkLevel, generateBarkComment, generateModMessage } from './bark.js';
-import { saveScanResult, hasBeenScanned, hasBarkedInThread, markBarkedInThread } from './storage.js';
+import { saveScanResult, hasBeenScanned, claimBarkSlot } from './storage.js';
 import type { ActionMode, AuthorInfo, BarkVisibility, ScanResult } from './types.js';
 
 Devvit.configure({ redditAPI: true, redis: true });
@@ -17,7 +17,7 @@ Devvit.addSettings([
     type: 'number',
     label: 'Slop detection threshold',
     helpText:
-      'Posts scoring below this authenticity level (0-100) trigger alerts. Lower = stricter. Default: 45',
+      'Posts scoring below this authenticity level (0-100) trigger alerts. Higher = stricter (flags more posts). Default: 45',
     defaultValue: 45,
   },
   {
@@ -108,7 +108,12 @@ async function scanPost(
   // Dedup unless forced (manual scan)
   if (!options?.force && (await hasBeenScanned(redis, postId))) return null;
 
-  const post = await reddit.getPostById(postId);
+  let post;
+  try {
+    post = await reddit.getPostById(postId);
+  } catch {
+    return null; // Post was deleted before we could scan it
+  }
   const body = post.body ?? '';
   const settings = await loadSettings(context);
 
@@ -125,17 +130,16 @@ async function scanPost(
   if (score.overall < settings.threshold) {
     const postUrl = `https://www.reddit.com${post.permalink}`;
 
-    // Public bark comment — only once per thread
+    // Public bark comment — only once per thread (atomic claim)
     if (settings.visibility === 'public' && barkLevel.barks > 0) {
-      if (!(await hasBarkedInThread(redis, postId))) {
+      if (await claimBarkSlot(redis, postId)) {
         const comment = generateBarkComment(score);
         if (comment) {
           const reply = await reddit.submitComment({
             id: postId,
             text: comment,
           });
-          await reply.distinguish(true);
-          await markBarkedInThread(redis, postId);
+          try { await reply.distinguish(true); } catch { /* missing mod perms */ }
           actionTaken = 'commented';
         }
       }
@@ -188,12 +192,18 @@ async function scanPost(
 async function scanComment(
   context: ContextWithRedis,
   commentId: string,
+  options?: { force?: boolean },
 ): Promise<ScanResult | null> {
   const { redis, reddit } = context;
 
-  if (await hasBeenScanned(redis, commentId)) return null;
+  if (!options?.force && (await hasBeenScanned(redis, commentId))) return null;
 
-  const comment = await reddit.getCommentById(commentId);
+  let comment;
+  try {
+    comment = await reddit.getCommentById(commentId);
+  } catch {
+    return null; // Comment was deleted before we could scan it
+  }
   const body = comment.body ?? '';
   const settings = await loadSettings(context);
 
@@ -213,17 +223,16 @@ async function scanComment(
   if (score.overall < settings.threshold) {
     const commentUrl = `https://www.reddit.com${comment.permalink}`;
 
-    // Reply to the suspicious comment — only once per thread
+    // Reply to the suspicious comment — only once per thread (atomic claim)
     if (settings.visibility === 'public' && barkLevel.barks > 0) {
-      if (!(await hasBarkedInThread(redis, parentPostId))) {
+      if (await claimBarkSlot(redis, parentPostId)) {
         const barkText = generateBarkComment(score);
         if (barkText) {
           const reply = await reddit.submitComment({
             id: commentId,
             text: barkText,
           });
-          await reply.distinguish(true);
-          await markBarkedInThread(redis, parentPostId);
+          try { await reply.distinguish(true); } catch { /* missing mod perms */ }
           actionTaken = 'commented';
         }
       }
@@ -347,7 +356,7 @@ Devvit.addMenuItem({
     const commentId = event.targetId;
     context.ui.showToast('SlopHound is sniffing...');
 
-    const result = await scanComment(context, commentId);
+    const result = await scanComment(context, commentId, { force: true });
 
     if (!result) {
       context.ui.showToast('Comment is too short to scan.');

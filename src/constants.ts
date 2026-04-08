@@ -38,7 +38,8 @@ export const CHATGPT_FINGERPRINTS: string[] = [
   'multifaceted',
   'arguably',
   'leverag', // catches leverage, leveraging, etc.
-  'game.changer',
+  'game changer',
+  'game-changer',
   'a holistic',
   // "it's X, it's Y" parallel structure — AI loves this
   "it's free",
