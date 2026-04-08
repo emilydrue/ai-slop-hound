@@ -69,17 +69,35 @@ function paragraphUniformity(text: string): number {
   return Math.max(0, 1 - cv / 0.8);
 }
 
-/** How specific is the text? Real humans mention concrete details. */
+/** How specific is the text? Distinguish real details from generic props.
+ *  Real details: proper nouns, brand names, exact dollar amounts, named locations.
+ *  Generic props: "a sandwich", "a gas station", "seven months" — anyone can make these up. */
 function specificityScore(text: string): number {
-  let score = 0.5;
+  let score = 0.35; // lower baseline — specificity must be earned
   const lower = text.toLowerCase();
 
-  const numberCount = (text.match(/\b\d+\b/g) || []).length;
-  if (numberCount >= 3) score += 0.15;
-  else if (numberCount >= 1) score += 0.05;
+  // Strong specificity: dollar amounts, percentages, exact figures
+  const exactAmounts = (text.match(/\$\d[\d,.]+|\b\d+%|\b\d{1,3}k\b/g) || []).length;
+  if (exactAmounts >= 2) score += 0.2;
+  else if (exactAmounts >= 1) score += 0.1;
 
-  const timeRefs = (lower.match(/\b\d+\s*(month|year|week|day|hour)s?\b/g) || []).length;
-  if (timeRefs >= 1) score += 0.15;
+  // Strong specificity: proper nouns / brand names (capitalized multi-word or known patterns)
+  // Look for capitalized words that aren't sentence starters
+  const midSentenceProperNouns = (text.match(/[a-z,] [A-Z][a-z]{2,}/g) || []).length;
+  if (midSentenceProperNouns >= 3) score += 0.15;
+  else if (midSentenceProperNouns >= 1) score += 0.05;
+
+  // Strong specificity: named people, places, products
+  const namedEntities = (text.match(/\b(my (wife|husband|partner|friend|boss|coworker|mom|dad|brother|sister|son|daughter) \w+|r\/\w+|\b[A-Z][a-z]+(?:\s[A-Z][a-z]+)+)\b/g) || []).length;
+  if (namedEntities >= 1) score += 0.1;
+
+  // Moderate: time references with specifics
+  const timeRefs = (lower.match(/\b(in 20\d{2}|last (january|february|march|april|may|june|july|august|september|october|november|december)|\d+ years? ago)\b/g) || []).length;
+  if (timeRefs >= 1) score += 0.1;
+
+  // Weak: generic numbers and time words — less credit than before
+  const numberCount = (text.match(/\b\d+\b/g) || []).length;
+  if (numberCount >= 3) score += 0.05;
 
   if (COMPARISON_MARKERS.some((m) => lower.includes(m))) score += 0.1;
 
@@ -87,7 +105,7 @@ function specificityScore(text: string): number {
     (c, m) => c + (lower.includes(m) ? 1 : 0),
     0,
   );
-  if (problemCount >= 2) score += 0.15;
+  if (problemCount >= 2) score += 0.1;
   else if (problemCount === 1) score += 0.05;
 
   return Math.min(1, score);
