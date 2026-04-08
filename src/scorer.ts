@@ -516,10 +516,17 @@ export function scorePost(
     const hasAnyTypos = typoMarkers > 0;
     const hasAnySlang = playfulCount > 0 || forcedCasualCount > 0;
     const hasParentheticals = parentheticals > 0;
-    const hasFragments = text.split(/[.!?]+/).filter((s) => {
-      const w = s.trim().split(/\s+/).length;
-      return w >= 1 && w <= 3 && s.trim().length > 0;
-    }).length > 0;
+    // Scattered fragments = human. Stacked fragments = AI drama.
+    // Only count as human texture if fragments aren't consecutive.
+    const allSentences = text.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 0);
+    const fragmentIndices: number[] = [];
+    allSentences.forEach((s, i) => {
+      if (s.split(/\s+/).length <= 3) fragmentIndices.push(i);
+    });
+    const hasStackedFragments = fragmentIndices.some((idx, i) =>
+      i > 0 && fragmentIndices[i - 1] === idx - 1
+    );
+    const hasFragments = fragmentIndices.length > 0 && !hasStackedFragments;
     const hasProfanity = /\b(fuck|shit|damn|hell|ass|crap|wtf|omg|ffs|jfc|bs|smh)\b/i.test(text);
     const hasExclamation = text.includes('!');
     const hasAllCaps = /\b[A-Z]{2,}\b/.test(text.replace(/\b(I|TL|DR|AITA|AITJ|AITAH|NTA|YTA|ESH|NAH|EDC|TLDR)\b/g, ''));
@@ -666,6 +673,23 @@ export function scorePost(
     (engagementCount >= 2 ? 1 : 0) +         // engagement bait signals
     (polish >= 0.6 ? 1 : 0);                 // suspiciously polished prose
   signals.structural_tells = structuralTells;
+
+  // Stacked fragments — "Nothing to conquer. Nothing to eat. Winter coming."
+  // AI uses consecutive short sentences for dramatic effect. Humans don't.
+  const allSents = text.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 0);
+  let stackedFragmentRuns = 0;
+  let currentRun = 0;
+  for (const s of allSents) {
+    if (s.split(/\s+/).length <= 4) {
+      currentRun++;
+      if (currentRun >= 2) stackedFragmentRuns++;
+    } else {
+      currentRun = 0;
+    }
+  }
+  signals.stacked_fragments = stackedFragmentRuns;
+  if (stackedFragmentRuns >= 2) aiProb += 0.1;
+  else if (stackedFragmentRuns >= 1) aiProb += 0.05;
 
   // Hyphen-as-dash evasion — "word- next" instead of em dash
   const fakeEmDash = (text.match(/\w-\s\w/g) || []).length;
