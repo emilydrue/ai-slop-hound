@@ -423,11 +423,16 @@ export function scorePost(
     humanMarkers += 0.06;
   }
 
-  // Typos / casual spelling — real humans misspell things
-  const typoMarkers = (text.match(/\b(tho|thru|gonna|wanna|gotta|kinda|sorta|dunno|prolly|cuz|coz|bc|rn|ur|u|r|w\/|b\/c|idk|tbf|ngl)\b/gi) || []).length;
+  // Typos / casual spelling — real humans misspell things and use shorthand
+  const typoMarkers = (text.match(/\b(tho|thru|gonna|wanna|gotta|kinda|sorta|dunno|prolly|cuz|coz|bc|rn|ur|u|r|w\/|b\/c|idk|tbf|ngl|ect|alot|definately|seperate|occured|recieve|wierd|noone|eachother|atleast|alright|thankyou|everytime|infront|aswell)\b/gi) || []).length;
   signals.typo_markers = typoMarkers;
   if (typoMarkers >= 1) humanMarkers += 0.06;
   if (typoMarkers >= 3) humanMarkers += 0.06;
+
+  // Repeated words — "after after", "the the" — humans do this, AI doesn't
+  const repeatedWords = (text.match(/\b(\w+)\s+\1\b/gi) || []).length;
+  signals.repeated_words = repeatedWords;
+  if (repeatedWords >= 1) humanMarkers += 0.06;
 
   signals.human_markers = humanMarkers;
   aiProb -= humanMarkers;
