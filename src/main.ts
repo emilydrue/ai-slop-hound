@@ -3,7 +3,7 @@ import { cleanText } from './textCleaner.js';
 import { scorePost } from './scorer.js';
 import { getBarkLevel, generateBarkComment, generateModMessage } from './bark.js';
 import { saveScanResult, hasBeenScanned, claimBarkSlot, isUserTrusted, trustUser, untrustUser, getTrustedUsers, logFalsePositive, getStats } from './storage.js';
-import type { ActionMode, AuthorInfo, BarkVisibility, ScanTarget, ScanResult } from './types.js';
+import type { ActionMode, AuthorInfo, BarkVisibility, ScanResult } from './types.js';
 
 Devvit.configure({ redditAPI: true, redis: true });
 
@@ -13,58 +13,96 @@ Devvit.configure({ redditAPI: true, redis: true });
 
 Devvit.addSettings([
   {
-    name: 'postThreshold',
-    type: 'number',
-    label: 'Post detection threshold',
-    helpText:
-      'Posts scoring below this authenticity level (0-100) trigger alerts. Higher = stricter. Default: 45',
-    defaultValue: 45,
-  },
-  {
-    name: 'commentThreshold',
-    type: 'number',
-    label: 'Comment detection threshold',
-    helpText:
-      'Comments scoring below this authenticity level (0-100) trigger alerts. Higher = stricter. Default: 45',
-    defaultValue: 45,
-  },
-  {
-    name: 'actionMode',
-    type: 'select',
-    label: 'Action when slop is detected',
-    options: [
-      { label: 'Alert only (report + modmail)', value: 'alert-only' },
-      { label: 'Auto-remove', value: 'auto-remove' },
+    type: 'group',
+    label: 'Post scanning',
+    fields: [
+      {
+        name: 'scanPosts',
+        type: 'boolean',
+        label: 'Scan posts',
+        defaultValue: true,
+      },
+      {
+        name: 'postThreshold',
+        type: 'number',
+        label: 'Detection threshold (0-100)',
+        helpText: 'Posts scoring below this trigger alerts. Higher = stricter. Default: 45',
+        defaultValue: 45,
+      },
+      {
+        name: 'postAction',
+        type: 'select',
+        label: 'Action when slop is detected',
+        options: [
+          { label: 'Alert only (report + modmail)', value: 'alert-only' },
+          { label: 'Auto-remove', value: 'auto-remove' },
+        ],
+        defaultValue: ['alert-only'],
+      },
+      {
+        name: 'postBarkVisibility',
+        type: 'select',
+        label: 'Bark visibility',
+        options: [
+          { label: 'Public comment', value: 'public' },
+          { label: 'Mod-only (quiet mode)', value: 'mod-only' },
+        ],
+        defaultValue: ['mod-only'],
+      },
+      {
+        name: 'postMinLength',
+        type: 'number',
+        label: 'Minimum text length (characters)',
+        helpText: 'Posts shorter than this are skipped. Default: 100',
+        defaultValue: 100,
+      },
     ],
-    defaultValue: ['alert-only'],
   },
   {
-    name: 'barkVisibility',
-    type: 'select',
-    label: 'Bark visibility',
-    options: [
-      { label: 'Public comment on post', value: 'public' },
-      { label: 'Mod-only (quiet mode)', value: 'mod-only' },
+    type: 'group',
+    label: 'Comment scanning',
+    fields: [
+      {
+        name: 'scanComments',
+        type: 'boolean',
+        label: 'Scan comments',
+        defaultValue: true,
+      },
+      {
+        name: 'commentThreshold',
+        type: 'number',
+        label: 'Detection threshold (0-100)',
+        helpText: 'Comments scoring below this trigger alerts. Higher = stricter. Default: 45',
+        defaultValue: 45,
+      },
+      {
+        name: 'commentAction',
+        type: 'select',
+        label: 'Action when slop is detected',
+        options: [
+          { label: 'Alert only (report + modmail)', value: 'alert-only' },
+          { label: 'Auto-remove', value: 'auto-remove' },
+        ],
+        defaultValue: ['alert-only'],
+      },
+      {
+        name: 'commentBarkVisibility',
+        type: 'select',
+        label: 'Bark visibility',
+        options: [
+          { label: 'Public reply', value: 'public' },
+          { label: 'Mod-only (quiet mode)', value: 'mod-only' },
+        ],
+        defaultValue: ['mod-only'],
+      },
+      {
+        name: 'commentMinLength',
+        type: 'number',
+        label: 'Minimum text length (characters)',
+        helpText: 'Comments shorter than this are skipped. Default: 100',
+        defaultValue: 100,
+      },
     ],
-    defaultValue: ['mod-only'],
-  },
-  {
-    name: 'scanTarget',
-    type: 'select',
-    label: 'What to scan',
-    options: [
-      { label: 'Posts and comments', value: 'both' },
-      { label: 'Posts only', value: 'posts' },
-      { label: 'Comments only', value: 'comments' },
-    ],
-    defaultValue: ['both'],
-  },
-  {
-    name: 'minimumTextLength',
-    type: 'number',
-    label: 'Minimum text length to scan (characters)',
-    helpText: 'Posts shorter than this are ignored. Default: 100',
-    defaultValue: 100,
   },
 ]);
 
@@ -95,24 +133,53 @@ async function getAuthorInfo(
   }
 }
 
-async function loadSettings(context: ContextWithRedis) {
-  const [postThresholdRaw, commentThresholdRaw, actionModeRaw, visibilityRaw, scanTargetRaw, minLenRaw] =
-    await Promise.all([
-      context.settings.get<number>('postThreshold'),
-      context.settings.get<number>('commentThreshold'),
-      context.settings.get<string[]>('actionMode'),
-      context.settings.get<string[]>('barkVisibility'),
-      context.settings.get<string[]>('scanTarget'),
-      context.settings.get<number>('minimumTextLength'),
-    ]);
+interface PostSettings {
+  enabled: boolean;
+  threshold: number;
+  actionMode: ActionMode;
+  visibility: BarkVisibility;
+  minLength: number;
+}
 
+interface CommentSettings {
+  enabled: boolean;
+  threshold: number;
+  actionMode: ActionMode;
+  visibility: BarkVisibility;
+  minLength: number;
+}
+
+async function loadPostSettings(context: ContextWithRedis): Promise<PostSettings> {
+  const [enabled, threshold, action, visibility, minLen] = await Promise.all([
+    context.settings.get<boolean>('scanPosts'),
+    context.settings.get<number>('postThreshold'),
+    context.settings.get<string[]>('postAction'),
+    context.settings.get<string[]>('postBarkVisibility'),
+    context.settings.get<number>('postMinLength'),
+  ]);
   return {
-    postThreshold: ((postThresholdRaw as number) ?? 45) / 100,
-    commentThreshold: ((commentThresholdRaw as number) ?? 45) / 100,
-    actionMode: ((actionModeRaw as string[])?.[0] ?? 'alert-only') as ActionMode,
-    visibility: ((visibilityRaw as string[])?.[0] ?? 'mod-only') as BarkVisibility,
-    scanTarget: ((scanTargetRaw as string[])?.[0] ?? 'both') as ScanTarget,
-    minLength: (minLenRaw as number) ?? 100,
+    enabled: (enabled as boolean) ?? true,
+    threshold: ((threshold as number) ?? 45) / 100,
+    actionMode: ((action as string[])?.[0] ?? 'alert-only') as ActionMode,
+    visibility: ((visibility as string[])?.[0] ?? 'mod-only') as BarkVisibility,
+    minLength: (minLen as number) ?? 100,
+  };
+}
+
+async function loadCommentSettings(context: ContextWithRedis): Promise<CommentSettings> {
+  const [enabled, threshold, action, visibility, minLen] = await Promise.all([
+    context.settings.get<boolean>('scanComments'),
+    context.settings.get<number>('commentThreshold'),
+    context.settings.get<string[]>('commentAction'),
+    context.settings.get<string[]>('commentBarkVisibility'),
+    context.settings.get<number>('commentMinLength'),
+  ]);
+  return {
+    enabled: (enabled as boolean) ?? true,
+    threshold: ((threshold as number) ?? 45) / 100,
+    actionMode: ((action as string[])?.[0] ?? 'alert-only') as ActionMode,
+    visibility: ((visibility as string[])?.[0] ?? 'mod-only') as BarkVisibility,
+    minLength: (minLen as number) ?? 100,
   };
 }
 
@@ -138,7 +205,7 @@ async function scanPost(
     return null; // Post was deleted before we could scan it
   }
   const body = post.body ?? '';
-  const settings = await loadSettings(context);
+  const settings = await loadPostSettings(context);
 
   if (body.length < settings.minLength) return null;
 
@@ -151,7 +218,7 @@ async function scanPost(
 
   let actionTaken: ScanResult['actionTaken'] = 'none';
 
-  if (score.overall < settings.postThreshold) {
+  if (score.overall < settings.threshold) {
     const postUrl = `https://www.reddit.com${post.permalink}`;
 
     // Public bark comment — only once per thread (atomic claim)
@@ -224,12 +291,12 @@ async function scanComment(
 
   let comment;
   try {
-    comment = await reddit.getCommentById(commentId);
+    comment = await context.reddit.getCommentById(commentId);
   } catch {
     return null; // Comment was deleted before we could scan it
   }
   const body = comment.body ?? '';
-  const settings = await loadSettings(context);
+  const settings = await loadCommentSettings(context);
 
   if (body.length < settings.minLength) return null;
 
@@ -245,7 +312,7 @@ async function scanComment(
 
   let actionTaken: ScanResult['actionTaken'] = 'none';
 
-  if (score.overall < settings.commentThreshold) {
+  if (score.overall < settings.threshold) {
     const commentUrl = `https://www.reddit.com${comment.permalink}`;
 
     // Reply to the suspicious comment — only once per thread (atomic claim)
@@ -322,8 +389,8 @@ Devvit.addTrigger({
   onEvent: async (event, context) => {
     const postId = event.post?.id;
     if (!postId) return;
-    const settings = await loadSettings(context);
-    if (settings.scanTarget === 'comments') return;
+    const settings = await loadPostSettings(context);
+    if (!settings.enabled) return;
     const appUsername = await getAppUsername(context);
     if (event.author?.name === appUsername) return;
     await scanPost(context, postId);
@@ -335,8 +402,8 @@ Devvit.addTrigger({
   onEvent: async (event, context) => {
     const commentId = event.comment?.id;
     if (!commentId) return;
-    const settings = await loadSettings(context);
-    if (settings.scanTarget === 'posts') return;
+    const settings = await loadCommentSettings(context);
+    if (!settings.enabled) return;
     const appUsername = await getAppUsername(context);
     if (event.author?.name === appUsername) return;
     await scanComment(context, commentId);
