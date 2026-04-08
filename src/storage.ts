@@ -69,30 +69,37 @@ export async function claimBarkSlot(
 // Trusted users allowlist
 // ---------------------------------------------------------------------------
 
-function trustedKey(username: string): string {
-  return `${PREFIX}:trusted:${username.toLowerCase()}`;
+function trustedSetKey(): string {
+  return `${PREFIX}:trusted_users`;
 }
 
 export async function isUserTrusted(
   redis: RedisClient,
   username: string,
 ): Promise<boolean> {
-  const val = await redis.get(trustedKey(username));
-  return val !== undefined && val !== null;
+  const score = await redis.zScore(trustedSetKey(), username.toLowerCase());
+  return score !== undefined && score !== null;
 }
 
 export async function trustUser(
   redis: RedisClient,
   username: string,
 ): Promise<void> {
-  await redis.set(trustedKey(username), '1');
+  await redis.zAdd(trustedSetKey(), { member: username.toLowerCase(), score: Date.now() });
 }
 
 export async function untrustUser(
   redis: RedisClient,
   username: string,
 ): Promise<void> {
-  await redis.del(trustedKey(username));
+  await redis.zRem(trustedSetKey(), [username.toLowerCase()]);
+}
+
+export async function getTrustedUsers(
+  redis: RedisClient,
+): Promise<string[]> {
+  const results = await redis.zRange(trustedSetKey(), 0, -1, { by: 'rank' });
+  return results.map((r) => r.member);
 }
 
 // ---------------------------------------------------------------------------

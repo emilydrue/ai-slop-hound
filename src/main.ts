@@ -2,7 +2,7 @@ import { Devvit } from '@devvit/public-api';
 import { cleanText } from './textCleaner.js';
 import { scorePost } from './scorer.js';
 import { getBarkLevel, generateBarkComment, generateModMessage } from './bark.js';
-import { saveScanResult, hasBeenScanned, claimBarkSlot, isUserTrusted, trustUser, untrustUser, logFalsePositive, getStats } from './storage.js';
+import { saveScanResult, hasBeenScanned, claimBarkSlot, isUserTrusted, trustUser, untrustUser, getTrustedUsers, logFalsePositive, getStats } from './storage.js';
 import type { ActionMode, AuthorInfo, BarkVisibility, ScanResult } from './types.js';
 
 Devvit.configure({ redditAPI: true, redis: true });
@@ -448,6 +448,24 @@ Devvit.addMenuItem({
     const modName = currentUser?.username ?? 'unknown';
     await logFalsePositive(context.redis, targetId, authorName, modName);
     context.ui.showToast(`Logged as false positive. Thanks for the feedback!`);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Trusted users list
+// ---------------------------------------------------------------------------
+
+Devvit.addMenuItem({
+  label: 'SlopHound: View Trusted Users',
+  location: 'subreddit',
+  forUserType: 'moderator',
+  onPress: async (_event, context) => {
+    const users = await getTrustedUsers(context.redis);
+    if (users.length === 0) {
+      context.ui.showToast('No trusted users yet.');
+    } else {
+      context.ui.showToast(`Trusted users: ${users.join(', ')}`);
+    }
   },
 });
 
