@@ -37,11 +37,11 @@ Settings are grouped separately for **posts** and **comments**, each with their 
 
 | Threshold | What to expect |
 |---|---|
-| 40 | Barely catches anything |
-| 55 | Catches obvious slop |
-| 65 | Catches most AI content |
-| 75 | Catches well-disguised AI, some false positives |
-| 85+ | Aggressive, will flag a lot, expect to review manually |
+| 35 | Only catches the most blatant AI slop |
+| 45 | Catches most AI content (default) |
+| 55 | Catches well-disguised AI, few false positives |
+| 60 | Aggressive, may flag articulate humans |
+| 65+ | Very aggressive, expect false positives and review manually |
 
 ## Mod actions
 
