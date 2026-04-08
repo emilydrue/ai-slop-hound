@@ -213,7 +213,7 @@ async function scanPost(
   const authorName = post.authorName ?? '[deleted]';
   if (await isUserTrusted(redis, authorName)) return null;
   const authorInfo = await getAuthorInfo(reddit, authorName);
-  const score = scorePost(cleaned, authorInfo, post.score);
+  const score = scorePost(cleaned, authorInfo, post.score, post.title);
   const barkLevel = getBarkLevel(score.overall);
 
   let actionTaken: ScanResult['actionTaken'] = 'none';

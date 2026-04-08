@@ -332,6 +332,59 @@ function casualBookendScore(text: string): number {
 }
 
 // -----------------------------------------------------------------------
+// Title scoring
+// -----------------------------------------------------------------------
+
+const CLICKBAIT_TITLE_PATTERNS: RegExp[] = [
+  /\bwhy everyone\b/i,
+  /\band you should too\b/i,
+  /\bhere'?s (why|what|how)\b/i,
+  /\byou need to know\b/i,
+  /\bnobody is talking about\b/i,
+  /\bwhat they don'?t tell you\b/i,
+  /\bthe truth about\b/i,
+  /\bstop doing this\b/i,
+  /\bi was wrong about\b/i,
+  /\bchanged (my|everything)\b/i,
+  /\bwhat .{3,20} taught me\b/i,
+  /\bbefore it'?s too late\b/i,
+  /\bmost people (don'?t|under|over|miss|ignore)\b/i,
+  /\bthe secret to\b/i,
+  /\bwhat i wish i knew\b/i,
+  /\bunpopular opinion\b/i,
+  /\bhot take\b/i,
+  /\bam i the only one\b/i,
+  /\blet'?s (debate|discuss|talk about) this\b/i,
+  /\bgame.?changer\b/i,
+];
+
+/**
+ * Score a title for AI clickbait patterns.
+ * Returns 0-1 where higher = more suspicious.
+ */
+function titleRedFlagScore(title: string): number {
+  if (!title || title.length < 10) return 0;
+
+  let score = 0;
+  const matchCount = CLICKBAIT_TITLE_PATTERNS.reduce(
+    (c, p) => c + (p.test(title) ? 1 : 0),
+    0,
+  );
+  score += matchCount * 0.15;
+
+  // Title uses em dash
+  if (/—/.test(title)) score += 0.15;
+
+  // Title in "X: Y" format (common AI structure)
+  if (/^[^:]{5,30}:\s/.test(title)) score += 0.05;
+
+  // Parenthetical in title — "(And Why You Should Care)"
+  if (/\(.{5,30}\)/.test(title)) score += 0.15;
+
+  return Math.min(1, score);
+}
+
+// -----------------------------------------------------------------------
 // Main scoring function
 // -----------------------------------------------------------------------
 
@@ -339,6 +392,7 @@ export function scorePost(
   text: string,
   author?: AuthorInfo | null,
   upvotes?: number | null,
+  title?: string | null,
 ): SlopScore {
   const signals: Record<string, number> = {};
   const wordCount = (text.match(/\S+/g) || []).length;
@@ -614,6 +668,34 @@ export function scorePost(
     (polish >= 0.6 ? 1 : 0);                 // suspiciously polished prose
   signals.structural_tells = structuralTells;
 
+  // Hyphen-as-dash evasion — "word- next" instead of em dash
+  const fakeEmDash = (text.match(/\w-\s\w/g) || []).length;
+  signals.fake_em_dash = fakeEmDash;
+  if (fakeEmDash >= 2) aiProb += 0.08;
+
+  // Rhetorical question density — AI loves ending paragraphs with questions
+  const questionCount = (text.match(/\?/g) || []).length;
+  const paragraphCount = text.split(/\n\n/).filter(Boolean).length || 1;
+  const questionRatio = questionCount / paragraphCount;
+  signals.question_density = questionRatio;
+  if (questionRatio > 0.5 && questionCount >= 2) aiProb += 0.06;
+
+  // Dramatic pivot — "That's [X] right now." single-sentence paragraph
+  const shortParas = text.split(/\n\n/).filter((p) => {
+    const trimmed = p.trim();
+    return trimmed.length > 5 && trimmed.length < 60 && trimmed.split(/\s+/).length <= 8;
+  });
+  const dramaticPivots = shortParas.filter((p) =>
+    /^(that'?s|this is|welcome to|sound familiar)\b/i.test(p.trim())
+  ).length;
+  signals.dramatic_pivots = dramaticPivots;
+  if (dramaticPivots >= 1) aiProb += 0.08;
+
+  // Title red flags — AI clickbait titles amplify body AI probability
+  const titleScore = title ? titleRedFlagScore(title) : 0;
+  signals.title_red_flag = titleScore;
+  aiProb += titleScore * 0.15;
+
   // Compound multiplier — when multiple AI tells stack without any human
   // markers to counterbalance, amplify the AI probability.
   const redFlags =
@@ -624,7 +706,8 @@ export function scorePost(
     (fingerprintCount >= 1 ? 1 : 0) +
     (parallelCount >= 1 ? 1 : 0) +
     (dramaticCount >= 1 ? 1 : 0) +
-    (hedgingCount >= 1 ? 1 : 0);
+    (hedgingCount >= 1 ? 1 : 0) +
+    (titleScore >= 0.3 ? 1 : 0);              // clickbait title
   const humanCounterweight = humanMarkers > 0.1 ? 1 : 0;
   const netFlags = Math.max(0, redFlags - humanCounterweight);
   signals.red_flags = redFlags;
