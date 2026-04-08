@@ -8,10 +8,10 @@ export function getBarkLevel(overall: number): BarkLevel {
   const slop = 1 - overall;
 
   if (slop < 0.3) return { barks: 0, intensity: 'none' };
-  if (slop < 0.45) return { barks: 1, intensity: 'mild' };
-  if (slop < 0.6) return { barks: 2, intensity: 'moderate' };
-  if (slop < 0.75) return { barks: 3, intensity: 'strong' };
-  if (slop < 0.9) return { barks: 4, intensity: 'severe' };
+  if (slop < 0.4) return { barks: 1, intensity: 'mild' };
+  if (slop < 0.5) return { barks: 2, intensity: 'moderate' };
+  if (slop < 0.6) return { barks: 3, intensity: 'strong' };
+  if (slop < 0.75) return { barks: 4, intensity: 'severe' };
   return { barks: 5, intensity: 'definite' };
 }
 
