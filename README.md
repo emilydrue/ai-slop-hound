@@ -60,8 +60,9 @@ No detector is perfect. Very short content doesn't give much to work with, and a
 
 ## Changelog
 
-### 2.4.1
+### 2.4.3
 
+- Improved AI detection
 - Simplified public bark comments
 
 ### 2.4.0
