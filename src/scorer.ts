@@ -774,6 +774,23 @@ export function scorePost(
   signals.essay_structure = essay;
   aiProb += essay * 0.12;
 
+  // Second-person narrative voice — "You might find yourself..."
+  // Real Reddit posts are first person. AI uses second person for dramatic effect.
+  if (wordCount > 80) {
+    const youCount = (text.match(/\byou (will|might|may|could|would|find|realize|wonder|know|think|feel|see|start|have|are|were|went|take)\b/gi) || []).length;
+    const iCount = (text.match(/\bI (was|am|did|had|went|started|tried|thought|felt|realized|found|made|got|quit|left|built|worked)\b/gi) || []).length;
+    signals.second_person_narrative = youCount;
+    signals.first_person_narrative = iCount;
+    if (youCount >= 4 && iCount === 0) aiProb += 0.12;
+    else if (youCount >= 3 && iCount <= 1) aiProb += 0.06;
+  }
+
+  // Formal grammar tells — "whom", "one might", "whilst"
+  // Real Redditors don't use these
+  const formalGrammar = (text.match(/\b(whom|whilst|thereafter|furthermore|notwithstanding|henceforth|aforementioned|pertaining|one might|one could|one would)\b/gi) || []).length;
+  signals.formal_grammar = formalGrammar;
+  aiProb += formalGrammar * 0.06;
+
   // Stacked fragments — "Nothing to conquer. Nothing to eat. Winter coming."
   // AI uses consecutive short sentences for dramatic effect. Humans don't.
   const allSents = text.split(/[.!?]+/).map((s) => s.trim()).filter((s) => s.length > 0);
