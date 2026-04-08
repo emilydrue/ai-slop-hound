@@ -22,6 +22,7 @@ import {
   PARALLEL_STRUCTURE,
   EMPTY_INTENSIFIERS,
   DRAMATIC_PATTERNS,
+  ENGAGEMENT_BAIT,
   WEIGHTS,
 } from './constants.js';
 
@@ -306,6 +307,14 @@ export function scorePost(
   // Each match is a strong tell — scales with count
   aiProb += parallelCount * 0.12;
 
+  // Engagement bait — fake vulnerability + CTA + grateful edit
+  const engagementCount = ENGAGEMENT_BAIT.reduce(
+    (c, p) => c + (p.test(text) ? 1 : 0),
+    0,
+  );
+  signals.engagement_bait = engagementCount;
+  aiProb += engagementCount * 0.05;
+
   // Combo: forced-casual + clean structure = prompted AI mimicking Reddit
   if (forcedCasualCount >= 3 && anecdote >= 0.3) {
     aiProb += 0.15;
@@ -412,7 +421,9 @@ export function scorePost(
     (anecdote >= 0.6 ? 1 : 0) +              // suspiciously perfect anecdote structure
     (paraUniformity > 0.85 ? 1 : 0) +        // cookie-cutter paragraph lengths
     (hedgingCount >= 3 ? 1 : 0) +            // heavy hedging
-    (fingerprintCount >= 2 ? 1 : 0);         // multiple ChatGPT fingerprints
+    (fingerprintCount >= 2 ? 1 : 0) +        // multiple ChatGPT fingerprints
+    (dramaticCount >= 2 ? 1 : 0) +           // multiple dramatic patterns
+    (engagementCount >= 2 ? 1 : 0);          // engagement bait signals
   signals.structural_tells = structuralTells;
 
   // When structural AI patterns are present, specificity should NOT rescue

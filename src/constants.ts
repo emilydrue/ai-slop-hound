@@ -203,12 +203,17 @@ export const PARALLEL_STRUCTURE: RegExp[] = [
   /it \w+s \w+\.\s*it \w+s \w+\./i,
   /it'?s \w+[,.].*it'?s not \w+/i,
   /\bwhat works\b.*\bwhat doesn'?t\b/is,
-  /\bthe \w+, the \w+, the \w+/i,                // tricolon
-  /\bi'?m not .{5,40}\.\s*i'?m .{5,40}\./i,      // antithetical pair
+  /\bthe \w+, the \w+, the \w+/i,                // "the X, the Y, the Z" tricolon
+  /\bthe \w+\.\s*the \w+\.\s*the \w+/i,          // "The X. The Y. The Z." fragment tricolon
+  /\bi'?m not .{5,40}\.\s*i'?m .{5,40}\./i,      // "I'm not X. I'm Y."
+  /\bi'?m not saying .{3,40}\.\s*.{0,10}but\b/i,  // "I'm not saying X. But Y."
   /\bnot just .{3,30}\.\s*i am\b/i,
-  /\bi'?m not leaving .{3,40}\.\s*i'?m leaving\b/i,
-  /\bthink bigger\b.*\bact\b/i,                  // "Think bigger. Act bolder."
+  /\bthink bigger\b.*\bact\b/i,
+  /\byou'?re not \w+\.\s*you'?re \w+/i,          // "you're not X. You're Y."
+  /\bthe thing .{5,30} is .{5,30} you need to\b/i, // "the thing you X is the thing you need to Y"
+  /\bstopped .{3,20} and started\b/i,            // "stopped X and started Y"
   /\bnot \w+[,.]?\s*but \w+/i,                   // "Not X, but Y"
+  /\bi was .{3,30}\.\s*i am .{3,30}\./i,          // "I was X. I am Y." transformation
 ];
 
 export const ANECDOTE_TRANSITIONS: RegExp[] = [
@@ -256,12 +261,40 @@ export const EMPTY_INTENSIFIERS: RegExp[] = [
 export const DRAMATIC_PATTERNS: RegExp[] = [
   /\bsomething shifted\b/i,
   /\beverything changed\b/i,
-  /\bbut now\?\s/i,                               // "But now? [dramatic statement]"
+  /\bchanged everything\b/i,
+  /\bbut now\?\s/i,
   /\bno fluff\b/i,
   /\bshouting into the void\b/i,
   /\bembark on a journey\b/i,
   /\bin a world where\b/i,
   /\bas technology continues to evolve\b/i,
+  /\bthe answer surprised me\b/i,
+  /\bthen one \w+day\b/i,                         // "Then one Tuesday/Monday..."
+  /\bthat was \d+ months? ago\b/i,                // "That was 8 months ago."
+  /\bif you'?re struggling\b/i,
+  /\bjust know\b/i,                               // "just know: you're not broken"
+  /\bwow this blew up\b/i,
+  /\bdidn'?t expect this to resonate\b/i,
+  /\bwould love to hear\b/i,
+  /\bhear your stor(y|ies)\b/i,
+  /\bi'?m not saying it was easy\b/i,
+];
+
+/**
+ * Engagement bait — fake vulnerability + call to action + grateful edit.
+ * Classic AI slop formula for karma farming.
+ */
+export const ENGAGEMENT_BAIT: RegExp[] = [
+  /\bin the comments\b/i,                          // "hear your stories in the comments"
+  /\bwow this blew up\b/i,
+  /\bthank you for .{0,20}kind words\b/i,
+  /\bdidn'?t expect this\b/i,
+  /\bthis resonat/i,                              // "this resonated", "this to resonate"
+  /\byou'?re not (broken|alone|crazy)\b/i,
+  /\bif this helps? even one person\b/i,
+  /\bshare your (stor|experience|thought)/i,
+  /\bwho else (has|feels|thinks)\b/i,
+  /\bdrop .{0,10}(below|comment)/i,               // "drop your thoughts below"
 ];
 
 /** Weights for overall authenticity formula. */
