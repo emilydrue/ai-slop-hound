@@ -60,6 +60,14 @@ No detector is perfect. Very short content doesn't give much to work with, and a
 
 ## Changelog
 
+### 3.0.0
+
+- Major detection engine overhaul
+- Title scanning for clickbait patterns
+- Improved scoring formula with better human/AI separation
+- Reduced false positives on single-paragraph posts, ESL writers, and niche subreddit formats
+- Compliance: scan data cleaned up when posts/comments are deleted
+
 ### 2.4.4
 
 - Improved AI detection
