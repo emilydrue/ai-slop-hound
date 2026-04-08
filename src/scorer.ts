@@ -341,6 +341,7 @@ export function scorePost(
   upvotes?: number | null,
 ): SlopScore {
   const signals: Record<string, number> = {};
+  const wordCount = (text.match(/\S+/g) || []).length;
 
   // --- AI-generated probability ---
   // Start at 0.3 (mild presumption of innocence) and accumulate evidence.
@@ -434,8 +435,66 @@ export function scorePost(
   signals.repeated_words = repeatedWords;
   if (repeatedWords >= 1) humanMarkers += 0.06;
 
+  // Repeated phrases — AI recycles its own phrases ("that didn't sit right with me" twice)
+  // This is different from repeated words — it's AI reusing a 4+ word phrase
+  const sentences = text.split(/[.!?]+/).map((s) => s.trim().toLowerCase()).filter((s) => s.length > 20);
+  let repeatedPhrases = 0;
+  for (let i = 0; i < sentences.length; i++) {
+    const words = sentences[i].split(/\s+/);
+    for (let w = 0; w < words.length - 3; w++) {
+      const phrase = words.slice(w, w + 4).join(' ');
+      for (let j = i + 1; j < sentences.length; j++) {
+        if (sentences[j].includes(phrase)) { repeatedPhrases++; break; }
+      }
+    }
+  }
+  // Cap it — we don't need to count every overlap
+  repeatedPhrases = Math.min(repeatedPhrases, 5);
+  signals.repeated_phrases = repeatedPhrases;
+
   signals.human_markers = humanMarkers;
   aiProb -= humanMarkers;
+
+  // --- Human void detection ---
+  // The longer a post is, the more human messiness we expect to see.
+  // A long post with ZERO human markers is itself a strong AI signal.
+  if (wordCount >= 150 && humanMarkers <= 0.06) {
+    // Check for complete absence of human texture
+    const hasAnyTypos = typoMarkers > 0;
+    const hasAnySlang = playfulCount > 0 || forcedCasualCount > 0;
+    const hasParentheticals = parentheticals > 0;
+    const hasFragments = text.split(/[.!?]+/).filter((s) => {
+      const w = s.trim().split(/\s+/).length;
+      return w >= 1 && w <= 3 && s.trim().length > 0;
+    }).length > 0;
+    const hasProfanity = /\b(fuck|shit|damn|hell|ass|crap|wtf|omg|ffs|jfc|bs|smh)\b/i.test(text);
+    const hasExclamation = text.includes('!');
+    const hasAllCaps = /\b[A-Z]{2,}\b/.test(text.replace(/\b(I|TL|DR|AITA|AITJ|AITAH|NTA|YTA|ESH|NAH|EDC|TLDR)\b/g, ''));
+
+    const humanTextures =
+      (hasAnyTypos ? 1 : 0) +
+      (hasAnySlang ? 1 : 0) +
+      (hasParentheticals ? 1 : 0) +
+      (hasFragments ? 1 : 0) +
+      (hasProfanity ? 1 : 0) +
+      (hasExclamation ? 1 : 0) +
+      (hasAllCaps ? 1 : 0);
+
+    signals.human_textures = humanTextures;
+
+    // Long post with barely any human texture = suspicious
+    // Scale penalty with post length — 600 words with zero messiness is worse than 200
+    const lengthFactor = Math.min(1, wordCount / 400);
+    if (humanTextures <= 1) {
+      const voidPenalty = (2 - humanTextures) * 0.08 * lengthFactor;
+      signals.human_void = voidPenalty;
+      aiProb += voidPenalty;
+    }
+  }
+
+  // AI phrase recycling — reusing the same 4-word phrases in a post
+  if (repeatedPhrases >= 2) aiProb += 0.08;
+  else if (repeatedPhrases >= 1) aiProb += 0.04;
 
   // Combo: forced-casual + clean structure = prompted AI mimicking Reddit
   if (forcedCasualCount >= 3 && anecdote >= 0.3) {
@@ -474,7 +533,6 @@ export function scorePost(
 
   // Contraction avoidance — AI tends to write "it is", "do not", "I am"
   // where humans write "it's", "don't", "I'm"
-  const wordCount = (text.match(/\S+/g) || []).length;
   if (wordCount > 100) {
     const formalCount = (text.match(/\b(it is|do not|does not|can not|will not|would not|should not|I am|I have|I would|I will)\b/g) || []).length;
     const contractionCount = (text.match(/\b(it's|don't|doesn't|can't|won't|wouldn't|shouldn't|i'm|i've|i'd|i'll)\b/ig) || []).length;
