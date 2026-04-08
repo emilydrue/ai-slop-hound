@@ -477,24 +477,23 @@ export function scorePost(
   signals.emotional_variance_raw = emotVar;
 
   // --- Account trust ---
+  // Only penalize very new/low-karma accounts. Old accounts and high karma
+  // are NOT positive signals — accounts get farmed, aged, and sold.
   let accountTrust = 0.5;
   if (author) {
     if (author.accountAgeDays != null) {
       signals.account_age_days = author.accountAgeDays;
       if (author.accountAgeDays < 30) accountTrust -= 0.2;
-      else if (author.accountAgeDays > 365) accountTrust += 0.15;
     }
     if (author.karma != null) {
       signals.karma = author.karma;
       if (author.karma < 100) accountTrust -= 0.15;
-      else if (author.karma > 5000) accountTrust += 0.1;
     }
   }
 
   if (upvotes != null) {
     signals.upvotes = upvotes;
-    if (upvotes > 10) accountTrust += 0.05;
-    else if (upvotes < -2) accountTrust -= 0.1;
+    if (upvotes < -2) accountTrust -= 0.1;
   }
 
   // --- Clamp and compute overall ---

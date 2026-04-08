@@ -321,9 +321,9 @@ export const ENGAGEMENT_BAIT: RegExp[] = [
 
 /** Weights for overall authenticity formula. */
 export const WEIGHTS = {
-  ai: 0.25,
-  paid: 0.20,
+  ai: 0.30,
+  paid: 0.15,
   specificity: 0.20,
-  emotionalVariance: 0.15,
-  accountTrust: 0.20,
+  emotionalVariance: 0.20,
+  accountTrust: 0.15,
 } as const;
