@@ -48,29 +48,29 @@ const BARKS: Record<number, string[]> = {
 
 const REACTIONS: Record<number, string[]> = {
   1: [
-    'faint whiff of slop.',
-    'nose twitch. probably nothing... probably.',
-    'something smells a little off.',
+    'faint whiff of something. probably nothing... probably.',
+    'nose twitch. something smells a little off here.',
+    'caught a scent. could be nothing.',
   ],
   2: [
     'this smells synthetic.',
-    'hackles up. this reads like a machine wrote it.',
-    'sniffing intensifies. suspicious.',
+    'hackles up. something about this reads off.',
+    'sniffing intensifies. this one is suspicious.',
   ],
   3: [
-    'this reeks of AI slop.',
-    'NOT a good boy post. smells like a language model.',
-    'digging up bones on this one. highly suspicious.',
+    'this doesn\'t smell right.',
+    'digging up bones on this one. multiple signals firing.',
+    'picked up several AI scents here.',
   ],
   4: [
-    'this is almost certainly AI-generated.',
-    'all four paws planted. this is slop.',
-    'red alert. this post REEKS.',
+    'multiple strong signals detected.',
+    'all four paws planted. high confidence on this one.',
+    'strong AI scent across the board.',
   ],
   5: [
-    'certified grade-A AI slop. zero authentic sniffs detected.',
-    'full howl. pure, uncut AI slop.',
-    'this might as well have a "Made by ChatGPT" sticker on it.',
+    'every signal is firing. extremely high confidence.',
+    'full howl. this one lit up the whole board.',
+    'off the charts. about as confident as it gets.',
   ],
 };
 
@@ -81,8 +81,15 @@ export function generateBarkComment(score: SlopScore): string | null {
   const bark = pick(BARKS[level.barks]);
   const reaction = pick(REACTIONS[level.barks]);
   const why = whyItSmells(score);
+  const pct = (score.overall * 100).toFixed(0);
 
-  return `**${bark}** ${reaction} (${why})`;
+  return [
+    `**${bark}** ${reaction}`,
+    '',
+    `**${level.barks}/5 barks** — authenticity ${pct}% (${why})`,
+    '',
+    `^(SlopHound is an AI content detector for mods.) [^(Learn more)](https://developers.reddit.com/apps/ai-slop-hound)`,
+  ].join('\n');
 }
 
 export function generateModMessage(
