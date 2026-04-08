@@ -787,12 +787,9 @@ export function scorePost(
 
   // Formal grammar tells — "whom", "one might", "whilst"
   // Real Redditors don't use these
-  // Formal grammar — not proof of AI but correlates on Reddit
-  // "whom" is borderline, the rest are stronger signals
-  const strongFormal = (text.match(/\b(whilst|thereafter|notwithstanding|henceforth|aforementioned|pertaining|one might|one could|one would)\b/gi) || []).length;
-  const mildFormal = (text.match(/\b(whom|furthermore)\b/gi) || []).length;
-  signals.formal_grammar = strongFormal + mildFormal;
-  aiProb += strongFormal * 0.06 + mildFormal * 0.02;
+  // Formal grammar — only counts when other AI tells are present
+  const formalGrammar = (text.match(/\b(whom|whilst|thereafter|furthermore|notwithstanding|henceforth|aforementioned|pertaining|one might|one could|one would)\b/gi) || []).length;
+  signals.formal_grammar = formalGrammar;
 
   // Stacked fragments — "Nothing to conquer. Nothing to eat. Winter coming."
   // AI uses consecutive short sentences for dramatic effect. Humans don't.
@@ -850,7 +847,8 @@ export function scorePost(
     (parallelCount >= 1 ? 1 : 0) +
     (dramaticCount >= 1 ? 1 : 0) +
     (hedgingCount >= 1 ? 1 : 0) +
-    (titleScore >= 0.3 ? 1 : 0);              // clickbait title
+    (titleScore >= 0.3 ? 1 : 0) +             // clickbait title
+    (formalGrammar >= 1 ? 1 : 0);             // whom, whilst etc — only matters in context
   const humanCounterweight = humanMarkers > 0.1 ? 1 : 0;
   const netFlags = Math.max(0, redFlags - humanCounterweight);
   signals.red_flags = redFlags;
