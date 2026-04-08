@@ -20,6 +20,8 @@ import {
   ANECDOTE_TRANSITIONS,
   PARAGRAPH_TOPIC_STARTERS,
   PARALLEL_STRUCTURE,
+  EMPTY_INTENSIFIERS,
+  DRAMATIC_PATTERNS,
   WEIGHTS,
 } from './constants.js';
 
@@ -310,6 +312,43 @@ export function scorePost(
     signals.mimicry_combo = 1;
   }
 
+  // Em dash overuse — AI uses ~10x more em dashes than humans (GPT-4 training artifact)
+  const emDashCount = (text.match(/—|--/g) || []).length;
+  signals.em_dashes = emDashCount;
+  aiProb += Math.min(0.15, emDashCount * 0.04);
+
+  // Empty intensifiers — "absolutely brilliant", "truly groundbreaking"
+  const intensifierCount = EMPTY_INTENSIFIERS.reduce(
+    (c, p) => c + (p.test(text) ? 1 : 0),
+    0,
+  );
+  signals.empty_intensifiers = intensifierCount;
+  aiProb += intensifierCount * 0.04;
+
+  // Dramatic rhetorical patterns — "Something shifted.", "But now?"
+  const dramaticCount = DRAMATIC_PATTERNS.reduce(
+    (c, p) => c + (p.test(text) ? 1 : 0),
+    0,
+  );
+  signals.dramatic_patterns = dramaticCount;
+  aiProb += dramaticCount * 0.06;
+
+  // Contraction avoidance — AI tends to write "it is", "do not", "I am"
+  // where humans write "it's", "don't", "I'm"
+  const wordCount = (text.match(/\S+/g) || []).length;
+  if (wordCount > 100) {
+    const formalCount = (text.match(/\b(it is|do not|does not|can not|will not|would not|should not|I am|I have|I would|I will)\b/g) || []).length;
+    const contractionCount = (text.match(/\b(it's|don't|doesn't|can't|won't|wouldn't|shouldn't|i'm|i've|i'd|i'll)\b/ig) || []).length;
+    const total = formalCount + contractionCount;
+    if (total >= 3) {
+      const formalRatio = formalCount / total;
+      signals.contraction_avoidance = formalRatio;
+      // Humans almost always use contractions on Reddit; high formal ratio = suspicious
+      if (formalRatio > 0.5) aiProb += 0.08;
+      else if (formalRatio > 0.3) aiProb += 0.04;
+    }
+  }
+
   // --- Paid/promotional probability ---
   let paidProb = 0.5;
 
@@ -330,7 +369,6 @@ export function scorePost(
   let specificity = specificityScore(text);
   signals.specificity_raw = specificity;
 
-  const wordCount = (text.match(/\S+/g) || []).length;
   signals.word_count = wordCount;
   if (wordCount < 10) specificity -= 0.2;
   else if (wordCount > 30) specificity += 0.1;

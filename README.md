@@ -67,28 +67,23 @@ Available via the three-dot menu on the subreddit:
 
 ## Limitations
 
-This is a statistical detector. It catches most AI-generated content but has known gaps:
-
-- Well-prompted AI that's been given specific personal details can sometimes pass
-- Very short posts/comments don't give the scorer enough to work with
-- Articulate humans occasionally get flagged — use the "Trust This User" action to allowlist them
+No detector is perfect. Very short content doesn't give much to work with, and articulate humans can occasionally get flagged — use the "Trust This User" action to allowlist them.
 
 ## Changelog
 
 ### 1.1.0
 
-- **Trusted users allowlist** — Mods can mark users as trusted to skip future scans
-- **False positive logging** — "Not Slop" action logs misses for accuracy tracking
-- **Stats dashboard** — View scan counts, alert counts, and accuracy from the subreddit menu
-- **Onboarding** — Welcome modmail sent on install with setup instructions
-- **Improved detection** — Catches prompted AI with specific details (tricolons, antithetical pairs, rhetorical structure)
-- **Safer defaults** — Bark visibility defaults to mod-only; no public comments unless opted in
-- **Hardened output** — Scoring details removed from all user-facing messages
+- Trusted users allowlist
+- False positive logging and accuracy tracking
+- Stats view from subreddit menu
+- Welcome modmail on install
+- Improved detection engine
+- Bark visibility defaults to mod-only
+- Scoring details removed from all user-facing messages
 
 ### 1.0.0
 
 - Initial public release
-- Statistical AI content detection (no external API calls)
 - Configurable threshold, action mode, bark visibility
 - Manual scan via post/comment menu
 - Modmail alerts and mod queue reporting
