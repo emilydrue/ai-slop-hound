@@ -8,26 +8,18 @@ AI slop detection mod tool for Reddit. Scans posts and comments for AI-generated
 
 SlopHound automatically scans new posts and comments in your subreddit. When it detects likely AI-generated content, it can:
 
-- Comment on the post with a severity rating (1-5 barks)
 - Report to the mod queue
-- Send modmail with a score breakdown
+- Send modmail
+- Comment on the post (if bark visibility is set to public)
 - Auto-remove (if configured)
+
+When you install the app, SlopHound sends a welcome modmail explaining the default settings and available actions.
 
 ## Detection
 
 SlopHound uses statistical signals to score content. No external API calls — everything runs locally in milliseconds.
 
-**What it catches:**
-- Common AI phrases and ChatGPT fingerprints
-- Hedging language and buzzword density
-- Uniform paragraph structure
-- Fake-casual writing (AI mimicking Reddit voice with "lmao" and "literally" while writing perfectly structured essays)
-- Suspiciously perfect anecdote structure (agree with OP, tell a story, add one more point)
-- Overly agreeable comments with no real pushback
-- Low-specificity content, flat emotional tone
-- New/low-karma accounts
-
-Each post gets an **authenticity score from 0-100%**. Lower = more likely AI-generated.
+Each post gets an internal authenticity score. Lower scores are more likely AI-generated. Detection details are intentionally kept private to prevent gaming.
 
 ## Settings
 
@@ -47,31 +39,39 @@ Posts scoring below this authenticity level trigger alerts. Higher = more aggres
 
 ### Action mode
 
-- **Alert only** (default) — Comments on the post, reports to mod queue, sends modmail. Post stays up.
+- **Alert only** (default) — Reports to mod queue, sends modmail. Post stays up.
 - **Auto-remove** — Removes the post immediately and notifies mods. Use with a well-tuned threshold.
 
 ### Bark visibility
 
-- **Public comment** (default) — SlopHound replies on the post.
-- **Mod-only** — No public comment. Reports and modmail only.
+- **Mod-only** (default) — No public comment. Reports and modmail only.
+- **Public comment** — SlopHound replies on the post.
 
 ### Minimum text length
 
 Posts/comments shorter than this are skipped. Default: 100 characters.
 
-## Manual scan
+## Mod actions
 
-Mods can scan any post or comment on demand via the three-dot menu > **"SlopHound: Sniff This Post"** / **"SlopHound: Sniff This Comment"**. Works regardless of threshold settings.
+Available via the three-dot menu on any post or comment:
+
+- **SlopHound: Sniff This Post / Comment** — Manual scan on demand. Works regardless of threshold settings.
+- **SlopHound: Trust This User** — Add the author to the allowlist. SlopHound will skip them in future scans.
+- **SlopHound: Untrust This User** — Remove the author from the allowlist.
+- **SlopHound: Not Slop (False Positive)** — Log a detection as incorrect. Helps us track accuracy and improve.
+
+Available via the three-dot menu on the subreddit:
+
+- **SlopHound: View Stats** — See total scans, alerts, false positives, and accuracy rate.
+- **SlopHound: View Trusted Users** — See the full allowlist.
 
 ## Limitations
 
 This is a statistical detector. It catches most AI-generated content but has known gaps:
 
-- Well-prompted AI that's been specifically told to mimic a human Reddit voice can sometimes pass
+- Well-prompted AI that's been given specific personal details can sometimes pass
 - Very short posts/comments don't give the scorer enough to work with
-- Articulate humans occasionally get flagged — use "alert only" mode so mods can override
-
-We're actively improving detection. LLM-based scoring is planned for a future release.
+- Articulate humans occasionally get flagged — use the "Trust This User" action to allowlist them
 
 ## Feedback & discussion
 
