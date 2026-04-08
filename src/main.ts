@@ -13,11 +13,19 @@ Devvit.configure({ redditAPI: true, redis: true });
 
 Devvit.addSettings([
   {
-    name: 'slopThreshold',
+    name: 'postThreshold',
     type: 'number',
-    label: 'Slop detection threshold',
+    label: 'Post detection threshold',
     helpText:
-      'Posts scoring below this authenticity level (0-100) trigger alerts. Higher = stricter (flags more posts). Default: 45',
+      'Posts scoring below this authenticity level (0-100) trigger alerts. Higher = stricter. Default: 45',
+    defaultValue: 45,
+  },
+  {
+    name: 'commentThreshold',
+    type: 'number',
+    label: 'Comment detection threshold',
+    helpText:
+      'Comments scoring below this authenticity level (0-100) trigger alerts. Higher = stricter. Default: 45',
     defaultValue: 45,
   },
   {
@@ -88,9 +96,10 @@ async function getAuthorInfo(
 }
 
 async function loadSettings(context: ContextWithRedis) {
-  const [thresholdRaw, actionModeRaw, visibilityRaw, scanTargetRaw, minLenRaw] =
+  const [postThresholdRaw, commentThresholdRaw, actionModeRaw, visibilityRaw, scanTargetRaw, minLenRaw] =
     await Promise.all([
-      context.settings.get<number>('slopThreshold'),
+      context.settings.get<number>('postThreshold'),
+      context.settings.get<number>('commentThreshold'),
       context.settings.get<string[]>('actionMode'),
       context.settings.get<string[]>('barkVisibility'),
       context.settings.get<string[]>('scanTarget'),
@@ -98,7 +107,8 @@ async function loadSettings(context: ContextWithRedis) {
     ]);
 
   return {
-    threshold: ((thresholdRaw as number) ?? 45) / 100,
+    postThreshold: ((postThresholdRaw as number) ?? 45) / 100,
+    commentThreshold: ((commentThresholdRaw as number) ?? 45) / 100,
     actionMode: ((actionModeRaw as string[])?.[0] ?? 'alert-only') as ActionMode,
     visibility: ((visibilityRaw as string[])?.[0] ?? 'mod-only') as BarkVisibility,
     scanTarget: ((scanTargetRaw as string[])?.[0] ?? 'both') as ScanTarget,
@@ -141,7 +151,7 @@ async function scanPost(
 
   let actionTaken: ScanResult['actionTaken'] = 'none';
 
-  if (score.overall < settings.threshold) {
+  if (score.overall < settings.postThreshold) {
     const postUrl = `https://www.reddit.com${post.permalink}`;
 
     // Public bark comment — only once per thread (atomic claim)
@@ -235,7 +245,7 @@ async function scanComment(
 
   let actionTaken: ScanResult['actionTaken'] = 'none';
 
-  if (score.overall < settings.threshold) {
+  if (score.overall < settings.commentThreshold) {
     const commentUrl = `https://www.reddit.com${comment.permalink}`;
 
     // Reply to the suspicious comment — only once per thread (atomic claim)
