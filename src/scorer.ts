@@ -321,10 +321,12 @@ export function scorePost(
     signals.mimicry_combo = 1;
   }
 
-  // Em dash overuse — AI uses ~10x more em dashes than humans (GPT-4 training artifact)
-  const emDashCount = (text.match(/—|--/g) || []).length;
+  // Unicode em dash — real Redditors almost never type these. They use -- or just -.
+  // An actual — character is a strong AI fingerprint on its own.
+  const emDashCount = (text.match(/—/g) || []).length;
   signals.em_dashes = emDashCount;
-  aiProb += Math.min(0.15, emDashCount * 0.04);
+  if (emDashCount >= 1) aiProb += 0.12;
+  if (emDashCount >= 3) aiProb += 0.08;
 
   // Empty intensifiers — "absolutely brilliant", "truly groundbreaking"
   const intensifierCount = EMPTY_INTENSIFIERS.reduce(
