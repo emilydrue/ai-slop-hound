@@ -63,34 +63,23 @@ No detector is perfect. Very short content doesn't give much to work with, and a
 ### 2.4.1
 
 - Simplified public bark comments
-- Cleaned up user-facing text
 
 ### 2.4.0
 
-- Detect absence of human texture in long posts (no typos, slang, fragments, or profanity in 600+ words is suspicious)
-- Detect AI phrase recycling within posts
-- Compound red flag multiplier — stacking AI tells amplifies detection
-- Expanded engagement bait patterns
-- Added human authenticity markers that actively reduce AI probability (playful language, parenthetical asides, missing hyphens, casual spelling)
-- Unicode em dash treated as strong AI signal
-- Prose polish detection for consistently perfect grammar
-- Expanded emotional vocabulary and flat-affect detection
-- Account age and karma no longer boost trust (farmed accounts)
+- Improved detection accuracy
+- Reduced false positives on genuine human posts
+- Better scoring calibration
 
 ### 2.2.0
 
-- Separate settings for posts and comments (independent thresholds, actions, visibility, min length)
+- Separate settings for posts and comments
 - Enable/disable toggle for each content type
-- Settings grouped into Post and Comment sections
 
 ### 2.0.0
 
-- Major detection engine upgrade with 70+ AI fingerprint words and phrases
-- Em dash, contraction avoidance, empty intensifier, and dramatic pattern detection
-- Narrative AI slop detection (transformation arcs, engagement bait, rhetorical structure)
-- Scoring details removed from all user-facing output
-- Trusted users allowlist with View Trusted Users action
-- False positive logging with Not Slop action
+- Major detection engine improvements
+- Trusted users allowlist
+- False positive logging
 - Stats view from subreddit menu
 - Welcome modmail on install
 - Bark visibility defaults to mod-only
@@ -98,10 +87,6 @@ No detector is perfect. Very short content doesn't give much to work with, and a
 ### 1.0.0
 
 - Initial public release
-- Statistical AI content detection (no external API calls)
-- Configurable threshold, action mode, bark visibility
-- Manual scan via post/comment menu
-- Modmail alerts and mod queue reporting
 
 ## Feedback & discussion
 
