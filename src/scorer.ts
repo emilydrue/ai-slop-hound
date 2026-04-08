@@ -787,9 +787,12 @@ export function scorePost(
 
   // Formal grammar tells — "whom", "one might", "whilst"
   // Real Redditors don't use these
-  const formalGrammar = (text.match(/\b(whom|whilst|thereafter|furthermore|notwithstanding|henceforth|aforementioned|pertaining|one might|one could|one would)\b/gi) || []).length;
-  signals.formal_grammar = formalGrammar;
-  aiProb += formalGrammar * 0.06;
+  // Formal grammar — not proof of AI but correlates on Reddit
+  // "whom" is borderline, the rest are stronger signals
+  const strongFormal = (text.match(/\b(whilst|thereafter|notwithstanding|henceforth|aforementioned|pertaining|one might|one could|one would)\b/gi) || []).length;
+  const mildFormal = (text.match(/\b(whom|furthermore)\b/gi) || []).length;
+  signals.formal_grammar = strongFormal + mildFormal;
+  aiProb += strongFormal * 0.06 + mildFormal * 0.02;
 
   // Stacked fragments — "Nothing to conquer. Nothing to eat. Winter coming."
   // AI uses consecutive short sentences for dramatic effect. Humans don't.
