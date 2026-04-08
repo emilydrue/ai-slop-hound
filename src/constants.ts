@@ -133,6 +133,10 @@ export const PARALLEL_STRUCTURE: RegExp[] = [
   /it \w+s \w+\.\s*it \w+s \w+\./i,              // "It does X. It does Y."
   /it'?s \w+[,.].*it'?s not \w+/i,               // "it's X, it's not Y"
   /\bwhat works\b.*\bwhat doesn'?t\b/is,          // "what works / what doesn't"
+  /\bthe \w+, the \w+, the \w+/i,                // "the X, the Y, the Z" tricolon
+  /\bi'?m not .{5,40}\.\s*i'?m .{5,40}\./i,      // "I'm not X. I'm Y." antithetical
+  /\bnot just .{3,30}\.\s*i am\b/i,              // "not just X. I am Y" setup/payoff
+  /\bi'?m not leaving .{3,40}\.\s*i'?m leaving\b/i, // "I'm not leaving X. I'm leaving Y"
 ];
 
 export const ANECDOTE_TRANSITIONS: RegExp[] = [

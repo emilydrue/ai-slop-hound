@@ -255,56 +255,56 @@ export function scorePost(
   const signals: Record<string, number> = {};
 
   // --- AI-generated probability ---
-  let aiProb = 0.5;
+  // Start at 0.3 (mild presumption of innocence) and accumulate evidence.
+  // Every signal contributes proportionally — no minimum threshold to matter.
+  let aiProb = 0.3;
 
   const ttr = typeTokenRatio(text);
   signals.type_token_ratio = ttr;
-  if (ttr < 0.3) aiProb += 0.1;
-  else if (ttr > 0.7) aiProb -= 0.1;
+  // Low diversity = repetitive/formulaic. High = authentic vocabulary.
+  aiProb += (1 - ttr) * 0.08;
 
   const hedgingCount = countHedgingPhrases(text);
   signals.hedging_phrases = hedgingCount;
-  if (hedgingCount >= 3) aiProb += 0.15;
-  else if (hedgingCount === 0) aiProb -= 0.05;
+  // Each hedging phrase contributes — don't wait for 3+
+  aiProb += hedgingCount * 0.05;
 
   const paraUniformity = paragraphUniformity(text);
   signals.paragraph_uniformity = paraUniformity;
-  if (paraUniformity > 0.8) aiProb += 0.1;
+  // Scales continuously rather than gating at 0.8
+  aiProb += paraUniformity * 0.1;
 
   const fingerprintCount = countChatgptFingerprints(text);
   signals.chatgpt_fingerprints = fingerprintCount;
-  if (fingerprintCount >= 4) aiProb += 0.25;
-  else if (fingerprintCount >= 3) aiProb += 0.15;
+  // Each fingerprint is a strong signal — even 1 matters
+  aiProb += fingerprintCount * 0.06;
 
-  // NEW: Reddit voice mimicry signals
+  // Reddit voice mimicry signals
   const forcedCasualCount = countForcedCasual(text);
   signals.forced_casual = forcedCasualCount;
 
   const anecdote = anecdoteStructureScore(text);
   signals.anecdote_structure = anecdote;
-  if (anecdote >= 0.6) aiProb += 0.2;
-  else if (anecdote >= 0.3) aiProb += 0.1;
+  aiProb += anecdote * 0.15;
 
   const mismatch = casualPolishMismatch(text);
   signals.casual_polish_mismatch = mismatch;
-  if (mismatch >= 0.4) aiProb += 0.2;
-  else if (mismatch >= 0.2) aiProb += 0.1;
+  aiProb += mismatch * 0.15;
 
   const agreeable = agreeabilityScore(text);
   signals.agreeability = agreeable;
-  if (agreeable >= 0.5) aiProb += 0.15;
-  else if (agreeable >= 0.3) aiProb += 0.08;
+  aiProb += agreeable * 0.12;
 
-  // Parallel structure ("it's X, it's Y")
+  // Parallel structure — rhetorical patterns real people rarely use
   const parallelCount = PARALLEL_STRUCTURE.reduce(
     (c, p) => c + (p.test(text) ? 1 : 0),
     0,
   );
   signals.parallel_structure = parallelCount;
-  if (parallelCount >= 2) aiProb += 0.2;
-  else if (parallelCount >= 1) aiProb += 0.1;
+  // Each match is a strong tell — scales with count
+  aiProb += parallelCount * 0.12;
 
-  // Combo bonus: forced-casual + clean structure = strong AI signal
+  // Combo: forced-casual + clean structure = prompted AI mimicking Reddit
   if (forcedCasualCount >= 3 && anecdote >= 0.3) {
     aiProb += 0.15;
     signals.mimicry_combo = 1;
@@ -366,10 +366,27 @@ export function scorePost(
   specificity = clamp(specificity);
   accountTrust = clamp(accountTrust);
 
+  // Count structural AI tells — rhetorical patterns that indicate the post
+  // was crafted by a model even if it has specific details (prompted AI).
+  // Only count patterns that real humans genuinely don't produce.
+  const structuralTells =
+    (parallelCount >= 1 ? 1 : 0) +           // tricolons, antithetical pairs
+    (anecdote >= 0.6 ? 1 : 0) +              // suspiciously perfect anecdote structure
+    (paraUniformity > 0.85 ? 1 : 0) +        // cookie-cutter paragraph lengths
+    (hedgingCount >= 3 ? 1 : 0) +            // heavy hedging
+    (fingerprintCount >= 2 ? 1 : 0);         // multiple ChatGPT fingerprints
+  signals.structural_tells = structuralTells;
+
+  // When structural AI patterns are present, specificity should NOT rescue
+  // the score — prompted AI has specificity too. Degrade specificity weight
+  // proportionally to how many structural tells fired.
+  const specificityDampen = Math.max(0, 1 - structuralTells * 0.3);
+  signals.specificity_dampen = specificityDampen;
+
   const overall = clamp(
     (1 - aiProb) * WEIGHTS.ai +
       (1 - paidProb) * WEIGHTS.paid +
-      specificity * WEIGHTS.specificity +
+      specificity * WEIGHTS.specificity * specificityDampen +
       emotVar * WEIGHTS.emotionalVariance +
       accountTrust * WEIGHTS.accountTrust,
   );
