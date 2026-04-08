@@ -53,15 +53,12 @@ Posts/comments shorter than this are skipped. Default: 100 characters.
 
 ## Mod actions
 
-Available via the three-dot menu on any post or comment:
+SlopHound adds mod actions to posts, comments, and the subreddit:
 
 - **SlopHound: Sniff This Post / Comment** — Manual scan on demand. Works regardless of threshold settings.
 - **SlopHound: Trust This User** — Add the author to the allowlist. SlopHound will skip them in future scans.
 - **SlopHound: Untrust This User** — Remove the author from the allowlist.
 - **SlopHound: Not Slop (False Positive)** — Log a detection as incorrect. Helps us track accuracy and improve.
-
-Available via the three-dot menu on the subreddit:
-
 - **SlopHound: View Stats** — See total scans, alerts, false positives, and accuracy rate.
 - **SlopHound: View Trusted Users** — See the full allowlist.
 

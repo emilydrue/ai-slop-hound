@@ -609,13 +609,6 @@ Devvit.addTrigger({
           '',
           `**To configure:** Go to Mod Tools > Installed Apps > ai-slop-hound > Settings`,
           '',
-          `**Mod actions available** (three-dot menu on any post/comment):`,
-          `- **Sniff This Post/Comment** — Manual scan on demand`,
-          `- **Trust This User** — Skip a user in future scans`,
-          `- **Not Slop (False Positive)** — Log a miss so we can improve`,
-          '',
-          `**View stats:** Three-dot menu on your subreddit > **SlopHound: View Stats**`,
-          '',
           `Questions or feedback? Visit [r/ai_slop_hound_dev](https://www.reddit.com/r/ai_slop_hound_dev)`,
         ].join('\n'),
       });

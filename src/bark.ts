@@ -100,10 +100,5 @@ export function generateModMessage(
     `**SlopHound [${level.barks}/5]** — [${postTitle}](${postUrl}) by u/${authorName}`,
     '',
     `This content triggered SlopHound's AI detection system.`,
-    '',
-    `Use the three-dot menu on the post/comment to:`,
-    `- **"SlopHound: Sniff This Post/Comment"** to re-scan manually`,
-    `- **"SlopHound: Not Slop"** to dismiss and mark as a false positive`,
-    `- **"SlopHound: Trust This User"** to skip this user in future scans`,
   ].join('\n');
 }
