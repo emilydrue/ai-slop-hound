@@ -325,11 +325,5 @@ export const ENGAGEMENT_BAIT: RegExp[] = [
   /\bchange my mind\b/i,
 ];
 
-/** Weights for overall authenticity formula. */
-export const WEIGHTS = {
-  ai: 0.30,
-  paid: 0.15,
-  specificity: 0.20,
-  emotionalVariance: 0.20,
-  accountTrust: 0.15,
-} as const;
+// Weights are now inlined in scorer.ts:
+// AI probability: 0.45, specificity: 0.20, emotional variance: 0.15, human texture: 0.20

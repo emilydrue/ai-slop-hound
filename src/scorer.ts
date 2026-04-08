@@ -23,7 +23,6 @@ import {
   EMPTY_INTENSIFIERS,
   DRAMATIC_PATTERNS,
   ENGAGEMENT_BAIT,
-  WEIGHTS,
 } from './constants.js';
 
 const clamp = (v: number): number => Math.max(0, Math.min(1, v));
@@ -724,12 +723,31 @@ export function scorePost(
   const specificityDampen = Math.max(0, 1 - structuralTells * 0.3);
   signals.specificity_dampen = specificityDampen;
 
+  // Human texture score — separate dimension from AI probability.
+  // Measures how "messy" the writing is. Real humans leave fingerprints.
+  let humanTexture = 0.5; // neutral baseline
+  humanTexture += humanMarkers * 1.5; // typos, slang, parentheticals boost it
+  if (signals.human_void) humanTexture -= signals.human_void;
+  if (signals.human_textures != null) {
+    // More texture types present = more human
+    humanTexture += (signals.human_textures / 7) * 0.3;
+  }
+  humanTexture = clamp(humanTexture);
+
+  // Fold account trust into aiProb as a minor modifier, not a separate dimension
+  if (accountTrust < 0.5) {
+    aiProb += (0.5 - accountTrust) * 0.15;
+    aiProb = clamp(aiProb);
+  }
+
+  // --- Final score ---
+  // 3 dimensions: AI probability (primary), specificity, emotional variance
+  // + human texture as a direct modifier
   const overall = clamp(
-    (1 - aiProb) * WEIGHTS.ai +
-      (1 - paidProb) * WEIGHTS.paid +
-      specificity * WEIGHTS.specificity * specificityDampen +
-      emotVar * WEIGHTS.emotionalVariance +
-      accountTrust * WEIGHTS.accountTrust,
+    (1 - aiProb) * 0.45 +
+      specificity * 0.20 * specificityDampen +
+      emotVar * 0.15 +
+      humanTexture * 0.20,
   );
 
   return {
