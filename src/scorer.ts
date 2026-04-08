@@ -608,6 +608,13 @@ export function scorePost(
   if (typoMarkers >= 1) humanMarkers += 0.06;
   if (typoMarkers >= 3) humanMarkers += 0.06;
 
+  // ESL apology — real non-native speakers almost always flag it
+  const eslApology = /\b(sorry.{0,15}(english|language|grammar)|english is(n't| not) my (first|native)|not a native speaker|forgive my english|pardon my english)\b/i.test(text);
+  if (eslApology) {
+    signals.esl_apology = 1;
+    humanMarkers += 0.1;
+  }
+
   // Excessive punctuation — "??????" or "!!!!" — humans do this, AI doesn't
   const excessivePunctuation = (text.match(/[?!]{3,}/g) || []).length;
   signals.excessive_punctuation = excessivePunctuation;
