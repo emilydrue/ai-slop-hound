@@ -330,6 +330,96 @@ function casualBookendScore(text: string): number {
   return 0;
 }
 
+/**
+ * Detect advice/opinion posts with no first-person experience.
+ * AI gives abstract advice. Humans say "I did X, Y happened."
+ * Returns 0-1 where higher = more suspicious.
+ */
+function abstractAdviceScore(text: string): number {
+  const lower = text.toLowerCase();
+  const wordCount = text.split(/\s+/).length;
+  if (wordCount < 80) return 0;
+
+  // Does the post give advice or opinions?
+  const isAdvicePost =
+    /\byou (can|should|need|could|might|have to)\b/i.test(text) ||
+    /\bif you'?re\b/i.test(text) ||
+    /\bmost people\b/i.test(text) ||
+    /\bthe (key|secret|trick|problem|issue) is\b/i.test(text) ||
+    /\bhere'?s (the thing|what|why|how)\b/i.test(text);
+
+  if (!isAdvicePost) return 0;
+
+  // Check for concrete first-person experience
+  const hasConcreteExperience =
+    /\bi (worked|built|made|started|quit|left|moved|switched|bought|sold|lost|found|tried|failed|learned|realized|discovered)\b/i.test(text) &&
+    /\b(last|ago|\d{4}|month|year|week|january|february|march|april|may|june|july|august|september|october|november|december)\b/i.test(text);
+
+  // Check for specific details in first-person context
+  const hasSpecificFirstPerson =
+    /\bmy (boss|manager|coworker|wife|husband|partner|friend|dad|mom|company|team|job|client)\b/i.test(text) ||
+    /\bat (my|the) (job|company|office|work|school)\b/i.test(text) ||
+    /\bwhen i was\b/i.test(text);
+
+  if (hasConcreteExperience || hasSpecificFirstPerson) return 0;
+
+  // Advice post with no concrete first-person experience = suspicious
+  // Check how abstract it is
+  const abstractMarkers = [
+    /\bin general\b/i,
+    /\bthe reality is\b/i,
+    /\bwhat .{3,20} (don'?t|won'?t|can'?t) (realize|understand|see)\b/i,
+    /\b(people|everyone|most|nobody) (think|believe|overlook|miss|forget|ignore)\b/i,
+    /\bthe (real|biggest|main) (problem|issue|challenge|mistake)\b/i,
+  ];
+  const abstractCount = abstractMarkers.reduce((c, p) => c + (p.test(text) ? 1 : 0), 0);
+
+  let score = 0.3; // base penalty for advice without experience
+  score += abstractCount * 0.15;
+  return Math.min(1, score);
+}
+
+/**
+ * Essay structure detection — AI writes clean paragraphs where each
+ * makes exactly one point. Real Reddit posts ramble, go off-topic,
+ * have uneven paragraph lengths, and don't follow essay structure.
+ * Returns 0-1 where higher = more suspicious.
+ */
+function essayStructureScore(text: string): number {
+  const paragraphs = text.split(/\n\n/).map((p) => p.trim()).filter(Boolean);
+  if (paragraphs.length < 3) return 0;
+
+  let score = 0;
+
+  // Each paragraph starts with a clean topic/transition sentence
+  const topicStarters = /^(but |so |and |another |what |the |this |for |however|meanwhile|that|in |it |because|where|already|every|napoleon|both)/i;
+  const startsWithTopic = paragraphs.filter((p) => topicStarters.test(p)).length;
+  const topicRatio = startsWithTopic / paragraphs.length;
+  if (topicRatio > 0.7) score += 0.3;
+
+  // Paragraphs are similar length (AI writes even blocks)
+  const paraLengths = paragraphs.map((p) => p.split(/\s+/).length);
+  const mean = paraLengths.reduce((a, b) => a + b, 0) / paraLengths.length;
+  if (mean > 0) {
+    const variance = paraLengths.reduce((sum, l) => sum + (l - mean) ** 2, 0) / paraLengths.length;
+    const cv = Math.sqrt(variance) / mean;
+    // Very low CV = suspiciously uniform
+    if (cv < 0.35 && paragraphs.length >= 4) score += 0.25;
+  }
+
+  // No tangents — every paragraph stays on theme (hard to detect directly,
+  // but we can check if paragraphs are independent/self-contained)
+  // Proxy: check if paragraphs each have their own conclusion/transition
+  const selfContained = paragraphs.filter((p) => {
+    const sentences = p.split(/[.!?]+/).filter((s) => s.trim().length > 5);
+    return sentences.length >= 2 && sentences.length <= 5;
+  }).length;
+  const selfContainedRatio = selfContained / paragraphs.length;
+  if (selfContainedRatio > 0.7 && paragraphs.length >= 4) score += 0.2;
+
+  return Math.min(1, score);
+}
+
 // -----------------------------------------------------------------------
 // Title scoring
 // -----------------------------------------------------------------------
@@ -673,6 +763,16 @@ export function scorePost(
     (engagementCount >= 2 ? 1 : 0) +         // engagement bait signals
     (polish >= 0.6 ? 1 : 0);                 // suspiciously polished prose
   signals.structural_tells = structuralTells;
+
+  // Abstract advice with no first-person experience
+  const abstractAdvice = abstractAdviceScore(text);
+  signals.abstract_advice = abstractAdvice;
+  aiProb += abstractAdvice * 0.12;
+
+  // Essay structure — clean paragraphs, topic sentences, even lengths
+  const essay = essayStructureScore(text);
+  signals.essay_structure = essay;
+  aiProb += essay * 0.12;
 
   // Stacked fragments — "Nothing to conquer. Nothing to eat. Winter coming."
   // AI uses consecutive short sentences for dramatic effect. Humans don't.
