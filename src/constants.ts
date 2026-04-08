@@ -115,6 +115,19 @@ export const CHATGPT_FINGERPRINTS: string[] = [
   "let's dive into",
   'an ongoing voyage',
   'captivating narrative',
+  'holistic growth',
+  'holistic approach',
+  'ripple effect',
+  'compound into',
+  'compound over time',
+  'lasting change',
+  'real, lasting',
+  'overall well-being',
+  'overall wellbeing',
+  'quick wins',
+  'life hack',
+  'mind-blowing',
+  'overhaul your',
 ];
 
 /**
@@ -295,6 +308,11 @@ export const ENGAGEMENT_BAIT: RegExp[] = [
   /\bshare your (stor|experience|thought)/i,
   /\bwho else (has|feels|thinks)\b/i,
   /\bdrop .{0,10}(below|comment)/i,               // "drop your thoughts below"
+  /\blooking forward to hearing\b/i,
+  /\bcurious what you .{0,10}think\b/i,
+  /\bwhat do you .{0,10}think\b/i,
+  /\blet me know .{0,10}(below|comment|thought)/i,
+  /\bmore people (need to|should)\b/i,
 ];
 
 /** Weights for overall authenticity formula. */
