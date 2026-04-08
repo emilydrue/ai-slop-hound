@@ -400,6 +400,38 @@ export function scorePost(
   signals.engagement_bait = engagementCount;
   aiProb += engagementCount * 0.05;
 
+  // --- Human authenticity markers (reduce AI probability) ---
+  let humanMarkers = 0;
+
+  // Playful/informal language AI doesn't produce
+  const playfulCount = (text.match(/\b(itty bitty|knick knack|thingamajig|doohickey|thingy|whatchamacallit|oopsie|whoopsie|ugh|oof|yikes|yeesh|meh|bleh|heh|pfft|welp|yup|nope|yep|hmm+|huh|eh|whew|geez|jeez|dude|omg|smh)\b/gi) || []).length;
+  signals.playful_language = playfulCount;
+  if (playfulCount >= 1) humanMarkers += 0.08;
+  if (playfulCount >= 3) humanMarkers += 0.06;
+
+  // Parenthetical asides — "(yup, as in a blade)", "(lol)", "(not kidding)"
+  const parentheticals = (text.match(/\([^)]{2,40}\)/g) || []).length;
+  signals.parentheticals = parentheticals;
+  if (parentheticals >= 1) humanMarkers += 0.06;
+
+  // Missing hyphens where grammar demands them — humans skip compound adjective hyphens
+  // "well stocked" instead of "well-stocked", "long term" instead of "long-term"
+  const missingHyphens = (text.match(/\b(well|long|short|high|low|full|self|over|under|hard|fast|slow|first|second|third|real|old|new|big|small) [a-z]{3,}\b/gi) || []).length;
+  const hasProperHyphens = (text.match(/\b(well|long|short|high|low|full|self|over|under|hard|fast|slow|first|second|third|real|old|new|big|small)-[a-z]{3,}\b/gi) || []).length;
+  if (missingHyphens > 0 && hasProperHyphens === 0) {
+    signals.missing_hyphens = missingHyphens;
+    humanMarkers += 0.06;
+  }
+
+  // Typos / casual spelling — real humans misspell things
+  const typoMarkers = (text.match(/\b(tho|thru|gonna|wanna|gotta|kinda|sorta|dunno|prolly|cuz|coz|bc|rn|ur|u|r|w\/|b\/c|idk|tbf|ngl)\b/gi) || []).length;
+  signals.typo_markers = typoMarkers;
+  if (typoMarkers >= 1) humanMarkers += 0.06;
+  if (typoMarkers >= 3) humanMarkers += 0.06;
+
+  signals.human_markers = humanMarkers;
+  aiProb -= humanMarkers;
+
   // Combo: forced-casual + clean structure = prompted AI mimicking Reddit
   if (forcedCasualCount >= 3 && anecdote >= 0.3) {
     aiProb += 0.15;
