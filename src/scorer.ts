@@ -246,6 +246,85 @@ function agreeabilityScore(text: string): number {
   return Math.min(1, score);
 }
 
+/**
+ * Perfect grammar score — real Redditors make typos, skip apostrophes,
+ * don't capitalize consistently. AI produces clean, consistent prose.
+ * Returns 0-1 where higher = more suspiciously polished.
+ */
+function prosePolishScore(text: string): number {
+  let score = 0;
+  const sentences = text.split(/[.!?]+/).filter((s) => s.trim().length > 5);
+  if (sentences.length < 3) return 0;
+
+  // Consistent sentence capitalization — every sentence starts with a capital
+  const capitalizedSentences = sentences.filter((s) => /^\s*[A-Z]/.test(s));
+  const capRatio = capitalizedSentences.length / sentences.length;
+  if (capRatio > 0.9) score += 0.3;
+
+  // No typos / perfect punctuation — check for apostrophe usage
+  // Real Redditors write "dont", "im", "thats". AI writes "don't", "I'm", "that's".
+  const hasApostrophes = /\b(don't|won't|can't|shouldn't|wouldn't|couldn't|I'm|I've|I'd|I'll|it's|that's|there's|what's|let's)\b/.test(text);
+  const hasCasualMissing = /\b(dont|wont|cant|shouldnt|wouldnt|couldnt|im|ive|id|ill|its|thats|theres|whats|lets)\b/i.test(text);
+  if (hasApostrophes && !hasCasualMissing) score += 0.2;
+
+  // Sentence length consistency — AI writes uniform-length sentences
+  const sentenceLengths = sentences.map((s) => s.trim().split(/\s+/).length);
+  const mean = sentenceLengths.reduce((a, b) => a + b, 0) / sentenceLengths.length;
+  if (mean > 0) {
+    const variance = sentenceLengths.reduce((sum, l) => sum + (l - mean) ** 2, 0) / sentenceLengths.length;
+    const cv = Math.sqrt(variance) / mean;
+    // Low coefficient of variation = uniform sentence lengths = suspicious
+    if (cv < 0.4) score += 0.25;
+    else if (cv < 0.6) score += 0.1;
+  }
+
+  // No sentence fragments — real Reddit posts have fragments ("Kind of weird.", "Same here.")
+  // AI almost always writes complete sentences
+  const fragments = sentences.filter((s) => s.trim().split(/\s+/).length <= 3);
+  if (fragments.length === 0 && sentences.length >= 5) score += 0.15;
+
+  return Math.min(1, score);
+}
+
+/**
+ * Casual bookending — AI opens and closes with casual/slangy sentences
+ * but writes polished prose in the middle. Real humans are messy throughout.
+ * Returns 0-1 where higher = more suspicious.
+ */
+function casualBookendScore(text: string): number {
+  const paragraphs = text.split(/\n\n/).map((p) => p.trim()).filter(Boolean);
+  if (paragraphs.length < 3) return 0;
+
+  const first = paragraphs[0];
+  const last = paragraphs[paragraphs.length - 1];
+  const middle = paragraphs.slice(1, -1);
+
+  // Check if first/last are casual (short, lowercase start, fragments, questions)
+  const isCasual = (p: string): boolean => {
+    const words = p.split(/\s+/).length;
+    const startsLower = /^[a-z]/.test(p);
+    const isQuestion = /\?$/.test(p.trim());
+    const isShort = words < 20;
+    const hasSlang = /\b(lol|tbh|ngl|honestly|kinda|kind of|idk|weird)\b/i.test(p);
+    return (isShort && (startsLower || isQuestion || hasSlang)) || (hasSlang && isQuestion);
+  };
+
+  // Check if middle paragraphs are polished (proper capitalization, longer, complete sentences)
+  const isPolished = (p: string): boolean => {
+    const startsUpper = /^[A-Z]/.test(p);
+    const words = p.split(/\s+/).length;
+    return startsUpper && words > 15;
+  };
+
+  const firstCasual = isCasual(first);
+  const lastCasual = isCasual(last);
+  const middlePolished = middle.filter(isPolished).length / Math.max(middle.length, 1);
+
+  if (firstCasual && lastCasual && middlePolished > 0.6) return 0.8;
+  if ((firstCasual || lastCasual) && middlePolished > 0.6) return 0.5;
+  return 0;
+}
+
 // -----------------------------------------------------------------------
 // Main scoring function
 // -----------------------------------------------------------------------
@@ -320,6 +399,12 @@ export function scorePost(
     aiProb += 0.15;
     signals.mimicry_combo = 1;
   }
+
+  // Prose polish — consistent grammar, capitalization, sentence structure
+  const polish = prosePolishScore(text);
+  signals.prose_polish = polish;
+  aiProb += polish * 0.15;
+
 
   // Unicode em dash — real Redditors almost never type these. They use -- or just -.
   // An actual — character is a strong AI fingerprint on its own.
@@ -425,7 +510,8 @@ export function scorePost(
     (hedgingCount >= 3 ? 1 : 0) +            // heavy hedging
     (fingerprintCount >= 2 ? 1 : 0) +        // multiple ChatGPT fingerprints
     (dramaticCount >= 2 ? 1 : 0) +           // multiple dramatic patterns
-    (engagementCount >= 2 ? 1 : 0);          // engagement bait signals
+    (engagementCount >= 2 ? 1 : 0) +         // engagement bait signals
+    (polish >= 0.6 ? 1 : 0);                 // suspiciously polished prose
   signals.structural_tells = structuralTells;
 
   // When structural AI patterns are present, specificity should NOT rescue
