@@ -278,6 +278,9 @@ function prosePolishScore(text: string): number {
   // Short posts can be polished without being AI — only flag longer ones
   const totalWords = text.split(/\s+/).length;
   if (totalWords < 120) return 0;
+  // Single-paragraph posts are just literate people rambling, not AI structure
+  const paragraphs = text.split(/\n\n/).filter(Boolean);
+  if (paragraphs.length < 2) return 0;
 
   // Consistent sentence capitalization — every sentence starts with a capital
   const capitalizedSentences = sentences.filter((s) => /^\s*[A-Z]/.test(s));
