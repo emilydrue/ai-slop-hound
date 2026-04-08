@@ -156,14 +156,18 @@ export const POSITIVE_WORDS = new Set([
   'love', 'great', 'amazing', 'excellent', 'perfect', 'fantastic',
   'awesome', 'wonderful', 'best', 'happy', 'impressed', 'solid',
   'recommend', 'worth', 'brilliant', 'groundbreaking', 'insightful',
-  'incredible', 'invaluable',
+  'incredible', 'invaluable', 'exciting', 'beautiful', 'grateful',
+  'thankful', 'glad', 'thrilled', 'enjoyed', 'fun', 'nice',
+  'lovely', 'cool', 'dope', 'fire', 'goated', 'blessed',
 ]);
 
 export const NEGATIVE_WORDS = new Set([
   'hate', 'terrible', 'awful', 'worst', 'horrible', 'bad', 'poor',
   'disappointed', 'frustrating', 'annoying', 'broken', 'cheap',
   'waste', 'regret', 'unfortunately', 'sucks', 'garbage', 'trash',
-  'crap', 'bullshit', 'pissed', 'furious',
+  'crap', 'bullshit', 'pissed', 'furious', 'angry', 'scared',
+  'worried', 'anxious', 'stressed', 'upset', 'hurt', 'painful',
+  'disgusting', 'ridiculous', 'stupid', 'dumb', 'lame', 'meh',
 ]);
 
 export const CONTRAST_WORDS = new Set([

@@ -111,6 +111,9 @@ function emotionalVariance(text: string): number {
   if (hasContrast && (posCount > 0 || negCount > 0)) return 0.65;
   if (posCount > 3 && negCount === 0) return 0.2;
   if (negCount > 3 && posCount === 0) return 0.3;
+  // No emotional words at all in a long post = suspiciously neutral
+  const totalWords = words.length;
+  if (totalWords > 150 && posCount === 0 && negCount === 0) return 0.25;
   return 0.5;
 }
 
