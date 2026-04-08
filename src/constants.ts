@@ -231,6 +231,9 @@ export const PARALLEL_STRUCTURE: RegExp[] = [
   /\bstopped .{3,20} and started\b/i,            // "stopped X and started Y"
   /\bnot \w+[,.]?\s*but \w+/i,                   // "Not X, but Y"
   /\bi was .{3,30}\.\s*i am .{3,30}\./i,          // "I was X. I am Y." transformation
+  /\bdon'?t \w+ \w+\.\s*they \w+/i,              // "People don't buy X. They buy Y."
+  /\bstop \w+.{3,60}start \w+/i,                 // "stop being X...start becoming Y"
+  /\bisn'?t .{3,20}\.\s*it'?s /i,                // "It isn't X. It's Y."
 ];
 
 export const ANECDOTE_TRANSITIONS: RegExp[] = [
@@ -317,6 +320,9 @@ export const ENGAGEMENT_BAIT: RegExp[] = [
   /\bwhat do you .{0,10}think\b/i,
   /\blet me know .{0,10}(below|comment|thought)/i,
   /\bmore people (need to|should)\b/i,
+  /\blet'?s (debate|discuss|talk about) this\b/i,
+  /\bthoughts\?/i,                                // "thoughts?" as a closer
+  /\bchange my mind\b/i,
 ];
 
 /** Weights for overall authenticity formula. */

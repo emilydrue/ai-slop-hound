@@ -556,6 +556,27 @@ export function scorePost(
     (polish >= 0.6 ? 1 : 0);                 // suspiciously polished prose
   signals.structural_tells = structuralTells;
 
+  // Compound multiplier — when multiple AI tells stack without any human
+  // markers to counterbalance, amplify the AI probability.
+  const redFlags =
+    (emDashCount >= 1 ? 1 : 0) +
+    (polish >= 0.5 ? 1 : 0) +
+    (specificity <= 0.55 ? 1 : 0) +         // vague, no concrete details
+    (engagementCount >= 1 ? 1 : 0) +
+    (fingerprintCount >= 1 ? 1 : 0) +
+    (parallelCount >= 1 ? 1 : 0) +
+    (dramaticCount >= 1 ? 1 : 0) +
+    (hedgingCount >= 1 ? 1 : 0);
+  const humanCounterweight = humanMarkers > 0.1 ? 1 : 0;
+  const netFlags = Math.max(0, redFlags - humanCounterweight);
+  signals.red_flags = redFlags;
+  signals.net_flags = netFlags;
+
+  // 3+ net flags = 10% boost per flag above 2. Compounding effect.
+  if (netFlags >= 3) {
+    aiProb = clamp(aiProb + (netFlags - 2) * 0.1);
+  }
+
   // When structural AI patterns are present, specificity should NOT rescue
   // the score — prompted AI has specificity too. Degrade specificity weight
   // proportionally to how many structural tells fired.
