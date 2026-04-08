@@ -863,6 +863,13 @@ export function scorePost(
   if (structuredFormatting >= 4) aiProb += 0.12;
   else if (structuredFormatting >= 2) aiProb += 0.06;
 
+  // Question-as-header pattern — "What is X?", "Why this matters?", "How to protect yourself"
+  // This is briefing/SWOT/consulting doc structure, not how humans write on Reddit
+  const questionHeaders = (text.match(/^(what (is|are|did|does|was|were|happened)|why (this|it|does|is|do)|how (to|did|does|do|can)|where (do|did|is|are)|when (did|does|is|should))\b[^.!?\n]{0,40}\??\s*$/gim) || []).length;
+  signals.question_headers = questionHeaders;
+  if (questionHeaders >= 3) aiProb += 0.12;
+  else if (questionHeaders >= 2) aiProb += 0.06;
+
   // Hyphen-as-dash evasion — "word- next" instead of em dash
   const fakeEmDash = (text.match(/\w-\s\w/g) || []).length;
   signals.fake_em_dash = fakeEmDash;
