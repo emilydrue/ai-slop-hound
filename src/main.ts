@@ -133,7 +133,7 @@ async function getAuthorInfo(
   }
 }
 
-interface PostSettings {
+interface ScanSettings {
   enabled: boolean;
   threshold: number;
   actionMode: ActionMode;
@@ -141,15 +141,7 @@ interface PostSettings {
   minLength: number;
 }
 
-interface CommentSettings {
-  enabled: boolean;
-  threshold: number;
-  actionMode: ActionMode;
-  visibility: BarkVisibility;
-  minLength: number;
-}
-
-async function loadPostSettings(context: ContextWithRedis): Promise<PostSettings> {
+async function loadPostSettings(context: ContextWithRedis): Promise<ScanSettings> {
   const [enabled, threshold, action, visibility, minLen] = await Promise.all([
     context.settings.get<boolean>('scanPosts'),
     context.settings.get<number>('postThreshold'),
@@ -166,7 +158,7 @@ async function loadPostSettings(context: ContextWithRedis): Promise<PostSettings
   };
 }
 
-async function loadCommentSettings(context: ContextWithRedis): Promise<CommentSettings> {
+async function loadCommentSettings(context: ContextWithRedis): Promise<ScanSettings> {
   const [enabled, threshold, action, visibility, minLen] = await Promise.all([
     context.settings.get<boolean>('scanComments'),
     context.settings.get<number>('commentThreshold'),
@@ -291,7 +283,7 @@ async function scanComment(
 
   let comment;
   try {
-    comment = await context.reddit.getCommentById(commentId);
+    comment = await reddit.getCommentById(commentId);
   } catch {
     return null; // Comment was deleted before we could scan it
   }
@@ -488,26 +480,29 @@ Devvit.addMenuItem({
 // Trust / False Positive actions
 // ---------------------------------------------------------------------------
 
+async function getAuthorFromTarget(
+  reddit: Devvit.Context['reddit'],
+  event: { targetId: string; location: string },
+): Promise<string | null> {
+  try {
+    if (event.location === 'comment') {
+      const comment = await reddit.getCommentById(event.targetId);
+      return comment.authorName ?? '[deleted]';
+    }
+    const post = await reddit.getPostById(event.targetId);
+    return post.authorName ?? '[deleted]';
+  } catch {
+    return null;
+  }
+}
+
 Devvit.addMenuItem({
   label: 'SlopHound: Trust This User',
   location: ['post', 'comment'],
   forUserType: 'moderator',
   onPress: async (event, context) => {
-    const targetId = event.targetId;
-    let authorName: string;
-    try {
-      if (event.location === 'comment') {
-        const comment = await context.reddit.getCommentById(targetId);
-        authorName = comment.authorName ?? '[deleted]';
-      } else {
-        const post = await context.reddit.getPostById(targetId);
-        authorName = post.authorName ?? '[deleted]';
-      }
-    } catch {
-      context.ui.showToast('Could not find content.');
-      return;
-    }
-
+    const authorName = await getAuthorFromTarget(context.reddit, event);
+    if (!authorName) { context.ui.showToast('Could not find content.'); return; }
     await trustUser(context.redis, authorName);
     context.ui.showToast(`SlopHound will now skip u/${authorName} in future scans.`);
   },
@@ -518,21 +513,8 @@ Devvit.addMenuItem({
   location: ['post', 'comment'],
   forUserType: 'moderator',
   onPress: async (event, context) => {
-    const targetId = event.targetId;
-    let authorName: string;
-    try {
-      if (event.location === 'comment') {
-        const comment = await context.reddit.getCommentById(targetId);
-        authorName = comment.authorName ?? '[deleted]';
-      } else {
-        const post = await context.reddit.getPostById(targetId);
-        authorName = post.authorName ?? '[deleted]';
-      }
-    } catch {
-      context.ui.showToast('Could not find content.');
-      return;
-    }
-
+    const authorName = await getAuthorFromTarget(context.reddit, event);
+    if (!authorName) { context.ui.showToast('Could not find content.'); return; }
     await untrustUser(context.redis, authorName);
     context.ui.showToast(`SlopHound will resume scanning u/${authorName}.`);
   },
@@ -543,24 +525,11 @@ Devvit.addMenuItem({
   location: ['post', 'comment'],
   forUserType: 'moderator',
   onPress: async (event, context) => {
-    const targetId = event.targetId;
-    let authorName: string;
-    try {
-      if (event.location === 'comment') {
-        const comment = await context.reddit.getCommentById(targetId);
-        authorName = comment.authorName ?? '[deleted]';
-      } else {
-        const post = await context.reddit.getPostById(targetId);
-        authorName = post.authorName ?? '[deleted]';
-      }
-    } catch {
-      context.ui.showToast('Could not find content.');
-      return;
-    }
-
+    const authorName = await getAuthorFromTarget(context.reddit, event);
+    if (!authorName) { context.ui.showToast('Could not find content.'); return; }
     const currentUser = await context.reddit.getCurrentUser();
     const modName = currentUser?.username ?? 'unknown';
-    await logFalsePositive(context.redis, targetId, authorName, modName);
+    await logFalsePositive(context.redis, event.targetId, authorName, modName);
     context.ui.showToast(`Logged as false positive. Thanks for the feedback!`);
   },
 });

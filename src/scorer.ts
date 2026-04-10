@@ -13,8 +13,6 @@ import {
   POSITIVE_WORDS,
   NEGATIVE_WORDS,
   CONTRAST_WORDS,
-  COMPARISON_MARKERS,
-  PROBLEM_MARKERS,
   FORCED_CASUAL_MARKERS,
   ANECDOTE_OPENERS,
   ANECDOTE_TRANSITIONS,
@@ -69,12 +67,6 @@ function paragraphUniformity(text: string): number {
   return Math.max(0, 1 - cv / 0.8);
 }
 
-/** Specificity is unreliable — AI has internet access and can include any
- *  searchable detail. This returns a flat neutral value. Kept as a function
- *  in case we find a way to detect truly personal (non-Googleable) details. */
-function specificityScore(_text: string): number {
-  return 0.5; // neutral — doesn't help or hurt
-}
 
 /** Mixed emotions = more authentic. Uniformly positive/negative = suspicious. */
 function emotionalVariance(text: string): number {
@@ -100,7 +92,7 @@ function emotionalVariance(text: string): number {
 }
 
 // -----------------------------------------------------------------------
-// NEW: Reddit voice mimicry detection
+// Reddit voice mimicry detection
 // -----------------------------------------------------------------------
 
 /**
@@ -674,7 +666,6 @@ export function scorePost(
   signals.prose_polish = polish;
   aiProb += polish * 0.15;
 
-
   // Unicode em dash — real Redditors almost never type these. They use -- or just -.
   // An actual — character is a strong AI fingerprint on its own.
   const emDashCount = (text.match(/—/g) || []).length;
@@ -729,13 +720,7 @@ export function scorePost(
   signals.slop_coverage = coverageCount;
   if (coverageCount >= 6) paidProb += 0.2;
 
-  // --- Specificity ---
-  let specificity = specificityScore(text);
-  signals.specificity_raw = specificity;
-
   signals.word_count = wordCount;
-  if (wordCount < 10) specificity -= 0.2;
-  else if (wordCount > 30) specificity += 0.1;
 
   // --- Emotional variance ---
   const emotVar = emotionalVariance(text);
@@ -764,7 +749,6 @@ export function scorePost(
   // --- Clamp and compute overall ---
   aiProb = clamp(aiProb);
   paidProb = clamp(paidProb);
-  specificity = clamp(specificity);
   accountTrust = clamp(accountTrust);
 
   // Count structural AI tells — rhetorical patterns that indicate the post
@@ -903,7 +887,6 @@ export function scorePost(
   const redFlags =
     (emDashCount >= 1 ? 1 : 0) +
     (polish >= 0.5 ? 1 : 0) +
-    (specificity <= 0.55 ? 1 : 0) +         // vague, no concrete details
     (engagementCount >= 1 ? 1 : 0) +
     (fingerprintCount >= 1 ? 1 : 0) +
     (parallelCount >= 1 ? 1 : 0) +
@@ -921,11 +904,6 @@ export function scorePost(
     aiProb = clamp(aiProb + (netFlags - 2) * 0.1);
   }
 
-  // When structural AI patterns are present, specificity should NOT rescue
-  // the score — prompted AI has specificity too. Degrade specificity weight
-  // proportionally to how many structural tells fired.
-  const specificityDampen = Math.max(0, 1 - structuralTells * 0.3);
-  signals.specificity_dampen = specificityDampen;
 
   // Human texture score — separate dimension from AI probability.
   // Measures how "messy" the writing is. Real humans leave fingerprints.
@@ -945,9 +923,7 @@ export function scorePost(
   }
 
   // --- Final score ---
-  // 3 dimensions: AI probability (primary), specificity, emotional variance
-  // 3 dimensions: AI probability (primary), emotional variance, human texture
-  // Specificity removed — AI has internet access, details prove nothing
+  // Final score: AI probability (primary), emotional variance, human texture
   const overall = clamp(
     (1 - aiProb) * 0.50 +
       emotVar * 0.20 +
@@ -958,7 +934,7 @@ export function scorePost(
     overall: Math.round(overall * 1000) / 1000,
     aiProbability: Math.round(aiProb * 1000) / 1000,
     paidProbability: Math.round(paidProb * 1000) / 1000,
-    specificity: Math.round(specificity * 1000) / 1000,
+    specificity: 0,
     emotionalVariance: Math.round(emotVar * 1000) / 1000,
     accountTrust: Math.round(accountTrust * 1000) / 1000,
     signals,

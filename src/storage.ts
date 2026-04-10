@@ -56,9 +56,9 @@ function threadBarkKey(postId: string): string {
 }
 
 /**
- * Atomically claim the bark slot for a thread. Returns true if this call
+ * Claim the bark slot for a thread. Returns true if this call
  * won the slot (i.e. no prior bark), false if another call already claimed it.
- * Uses set-if-not-exists to prevent race conditions with concurrent triggers.
+ * Note: not fully atomic — small race window between get and set.
  */
 export async function claimBarkSlot(
   redis: RedisClient,
@@ -133,6 +133,7 @@ export async function logFalsePositive(
   await redis.incrBy(`${statsKey()}:false_positives`, 1);
 }
 
+/** Retrieve recent false positives for future dashboard/analysis features. */
 export async function getFalsePositives(
   redis: RedisClient,
   limit: number = 50,

@@ -33,4 +33,3 @@ export interface AuthorInfo {
 
 export type ActionMode = 'alert-only' | 'auto-remove';
 export type BarkVisibility = 'public' | 'mod-only';
-export type ScanTarget = 'both' | 'posts' | 'comments';

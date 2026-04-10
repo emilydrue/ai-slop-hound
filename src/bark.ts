@@ -46,20 +46,14 @@ const BARKS: Record<number, string[]> = {
   5: ['AWOOOOOOOO!'],
 };
 
-const REACTIONS: Record<number, string[]> = {
-  1: ['smells like AI.'],
-  2: ['smells like AI.'],
-  3: ['smells like AI.'],
-  4: ['smells like AI.'],
-  5: ['smells like AI.'],
-};
+const REACTION = 'smells like AI.';
 
 export function generateBarkComment(score: SlopScore): string | null {
   const level = getBarkLevel(score.overall);
   if (level.barks === 0) return null;
 
   const bark = pick(BARKS[level.barks]);
-  const reaction = pick(REACTIONS[level.barks]);
+  const reaction = REACTION;
 
   return [
     `**${bark}** ${reaction}`,
