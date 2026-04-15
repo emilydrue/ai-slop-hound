@@ -1,0 +1,40 @@
+{
+  "scores": {
+    "ai_classic_chatgpt": {
+      "overall": 0.25,
+      "aiProbability": 1
+    },
+    "ai_engagement_bait": {
+      "overall": 0.426,
+      "aiProbability": 0.762
+    },
+    "ai_pet_voice": {
+      "overall": 0.499,
+      "aiProbability": 0.502
+    },
+    "ai_esl_fakeout": {
+      "overall": 0.466,
+      "aiProbability": 0.569
+    },
+    "human_esl_apology": {
+      "overall": 0.653,
+      "aiProbability": 0.397
+    },
+    "human_broken_pet": {
+      "overall": 0.703,
+      "aiProbability": 0.309
+    },
+    "human_messy_rant": {
+      "overall": 0.503,
+      "aiProbability": 0.576
+    },
+    "human_thoughtful_essay": {
+      "overall": 0.553,
+      "aiProbability": 0.562
+    },
+    "human_edge_short": {
+      "overall": 0.658,
+      "aiProbability": 0.303
+    }
+  }
+}

@@ -35,13 +35,16 @@ Settings are grouped separately for **posts** and **comments**, each with their 
 
 ### Threshold guide
 
-| Threshold | What to expect |
+The threshold is a sensitivity dial, not a measured precision guarantee. Start at the default and adjust based on what you see in your subreddit.
+
+| Band | Behavior |
 |---|---|
-| 35 | Only catches the most blatant AI slop |
-| 45 | Catches most AI content (default) |
-| 55 | Catches well-disguised AI, few false positives |
-| 60 | Aggressive, may flag articulate humans |
-| 65+ | Very aggressive, expect false positives and review manually |
+| **Lenient** (≤40) | Flags only the most obvious AI content. Expect misses on well-prompted AI. |
+| **Balanced** (45, default) | Alerts on most AI content while leaving casual/messy human posts alone. |
+| **Strict** (50–55) | Alerts on well-disguised AI. Expect occasional flags on articulate human writing — review before removing. |
+| **Aggressive** (60+) | Likely to flag human posts that are polished, formal, or unusually structured. Use alert-only, not auto-remove. |
+
+Tune based on your sub's norms. If you see false positives, use **Trust This User** to allowlist and lower the threshold a few points. Detection is imperfect — alert-only mode is the recommended default.
 
 ## Mod actions
 
@@ -59,6 +62,12 @@ SlopHound adds mod actions to posts, comments, and the subreddit:
 No detector is perfect. Very short content doesn't give much to work with, and articulate humans can occasionally get flagged — use the "Trust This User" action to allowlist them.
 
 ## Changelog
+
+### Unreleased (dev branch)
+
+- Labeled-corpus regression tests for the scorer (see `tests/`)
+- ESL-aware suppression: formal-grammar and contraction-avoidance penalties are reduced when a genuine ESL apology is present
+- README threshold guide reframed as qualitative bands rather than precision claims
 
 ### 3.0.0
 

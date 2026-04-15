@@ -690,7 +690,9 @@ export function scorePost(
   aiProb += dramaticCount * 0.06;
 
   // Contraction avoidance — AI tends to write "it is", "do not", "I am"
-  // where humans write "it's", "don't", "I'm"
+  // where humans write "it's", "don't", "I'm". ESL writers also avoid
+  // contractions, so suppress the penalty when a genuine ESL apology is
+  // present (AI impersonating ESL wouldn't think to include the apology).
   if (wordCount > 100) {
     const formalCount = (text.match(/\b(it is|do not|does not|can not|will not|would not|should not|I am|I have|I would|I will)\b/g) || []).length;
     const contractionCount = (text.match(/\b(it's|don't|doesn't|can't|won't|wouldn't|shouldn't|i'm|i've|i'd|i'll)\b/ig) || []).length;
@@ -698,9 +700,9 @@ export function scorePost(
     if (total >= 3) {
       const formalRatio = formalCount / total;
       signals.contraction_avoidance = formalRatio;
-      // Humans almost always use contractions on Reddit; high formal ratio = suspicious
-      if (formalRatio > 0.5) aiProb += 0.08;
-      else if (formalRatio > 0.3) aiProb += 0.04;
+      const eslSuppression = eslApology && wordCount < 500 ? 0.4 : 1.0;
+      if (formalRatio > 0.5) aiProb += 0.08 * eslSuppression;
+      else if (formalRatio > 0.3) aiProb += 0.04 * eslSuppression;
     }
   }
 
@@ -883,7 +885,10 @@ export function scorePost(
   aiProb += titleScore * 0.15;
 
   // Compound multiplier — when multiple AI tells stack without any human
-  // markers to counterbalance, amplify the AI probability.
+  // markers to counterbalance, amplify the AI probability. Formal grammar
+  // is suppressed for ESL writers who flagged the apology: their "whom"
+  // and "one might" don't carry the same AI signal.
+  const formalGrammarFlag = formalGrammar >= 1 && !(eslApology && wordCount < 500) ? 1 : 0;
   const redFlags =
     (emDashCount >= 1 ? 1 : 0) +
     (polish >= 0.5 ? 1 : 0) +
@@ -893,7 +898,7 @@ export function scorePost(
     (dramaticCount >= 1 ? 1 : 0) +
     (hedgingCount >= 1 ? 1 : 0) +
     (titleScore >= 0.3 ? 1 : 0) +             // clickbait title
-    (formalGrammar >= 1 ? 1 : 0);             // whom, whilst etc — only matters in context
+    formalGrammarFlag;                        // whom, whilst etc — only matters in context
   const humanCounterweight = humanMarkers > 0.1 ? 1 : 0;
   const netFlags = Math.max(0, redFlags - humanCounterweight);
   signals.red_flags = redFlags;
