@@ -63,18 +63,15 @@ No detector is perfect. Very short content doesn't give much to work with, and a
 
 ## Changelog
 
-### Unreleased (dev branch)
-
-- Labeled-corpus regression tests for the scorer (see `tests/`)
-- ESL-aware suppression: formal-grammar and contraction-avoidance penalties are reduced when a genuine ESL apology is present
-- README threshold guide reframed as qualitative bands rather than precision claims
-
 ### 3.0.0
 
 - Major detection engine overhaul
 - Title scanning for clickbait patterns
 - Improved scoring formula with better human/AI separation
 - Reduced false positives on single-paragraph posts, ESL writers, and niche subreddit formats
+- ESL-aware suppression: formal-grammar and contraction-avoidance penalties are reduced when a genuine ESL apology is present
+- Labeled-corpus regression tests for the scorer (see `tests/`)
+- Threshold guide reframed as qualitative bands
 - Compliance: scan data cleaned up when posts/comments are deleted
 
 ### 2.4.4
